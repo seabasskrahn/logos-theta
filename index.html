@@ -206,11 +206,13 @@ async function saveWav(){const rg=S.lastRange||{b:S.pos.b,c:S.pos.c,a:S.pos.v,z:
 
 // ---- narration (speechSynthesis), slaved to the audio clock
 const SS=window.speechSynthesis;let spkIdx=-1,voices=[];
-function loadVoices(){if(!SS)return;voices=SS.getVoices().filter(v=>/^en/i.test(v.lang));voice.innerHTML=voices.map((v,i)=>`<option value="${i}"${v.name==S.voice?' selected':''}>${v.name} (${v.lang})</option>`).join('')||'<option>default voice</option>'}
+function loadVoices(){if(!SS)return;const all=SS.getVoices(),en=v=>/^en/i.test(v.lang);voices=all.filter(en).concat(all.filter(v=>!en(v)));let sel=voices.findIndex(v=>v.name==S.voice);if(sel<0)sel=Math.max(0,voices.findIndex(v=>/^en[-_]GB/i.test(v.lang)));
+ voice.innerHTML=voices.map((v,i)=>`<option value="${i}"${i==sel?' selected':''}>${v.name} (${v.lang})</option>`).join('')||'<option value="-1">default voice</option>';const h=$('vHint');if(h)h.style.display=voices.length?'none':'block'}
+function testVoice(){if(!SS)return alert('Speech is not available in this browser.');loadVoices();SS.cancel();speakChunks('In the beginning was the Word, and the Word was with God.')}
 if(SS){loadVoices();SS.addEventListener?SS.addEventListener('voiceschanged',loadVoices):SS.onvoiceschanged=loadVoices}
 // Chrome (esp. Android) cuts utterances off after ~15 s: speak long verses as short phrase chunks
 function sayParts(t){return(t.match(/[^.;:,!?]+[.;:,!?'"’”)]*\s*/g)||[t]).reduce((a,x)=>{if(a.length&&(a[a.length-1]+x).length<160)a[a.length-1]+=x;else a.push(x);return a},[]).flatMap(x=>x.length>200?x.match(/.{1,180}(\s|$)/g):[x])}
-function speakChunks(t,onDone){const ps=sayParts(t||' ');ps.forEach((p,j)=>{const u=new SpeechSynthesisUtterance(p);u.rate=Math.min(3,Math.max(.5,+S.speed));u.lang='en-GB';const vv=voices[+voice.value];if(vv)u.voice=vv;if(j==ps.length-1&&onDone)u.onend=onDone;SS.speak(u)})}
+function speakChunks(t,onDone){const ps=sayParts(t||' ');ps.forEach((p,j)=>{const u=new SpeechSynthesisUtterance(p);u.rate=Math.min(3,Math.max(.5,+S.speed));const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;if(j==ps.length-1&&onDone)u.onend=onDone;SS.speak(u)})}
 function spkStop(){if(SS)SS.cancel();spkIdx=-1;document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'))}
 function narrTick(){if(nmA)return;if(!SS||!rendered||!(S.narr||rendered.t.narrate)||!rendered.t.engParts)return;const p=pos()%(rendered.pass||1e9),m=rendered.marks;let i=0;while(i+1<m.length&&m[i+1]<=p)i++;
  if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]]||{},txt=rendered.t.engParts[i]||'';speakChunks(txt);document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'));
@@ -469,7 +471,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101206',BUILD_LABEL='build Intersect · 2026101206';
+const BUILD='2026101207',BUILD_LABEL='build Intersect · 2026101207';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 // ---- the Intersect: evolving tone bed, cross-reference echoes, connections strip, follow the thread
@@ -555,7 +557,7 @@ function uiInit(){if($('sheet'))return;document.body.insertAdjacentHTML('beforee
   <div class="dim" style="margin-top:6px">Word values (derived by this app from gematria, folded by octaves into 100-800 Hz):</div>`+WORDS.map(([e,h,g])=>{const a=gemSum(h),b=gemSum(g);return`<div class="dim">${e}: ${h} = ${a} → ${fold(a,100,800).toFixed(1)} Hz · ${g} = ${b} → ${fold(b,100,800).toFixed(1)} Hz</div>`}).join(''));
  [...more.querySelectorAll(':scope > .dim')].forEach(e=>$('sound2').appendChild(e));
  mv(autoP,'reading1');mv(thread,'reading1');mv(narr,'reading1');$('reading1').appendChild(wrap(shB,'Shuffle'));const c1=Q('[onclick="stepChapter(-1)"]'),c2=Q('[onclick="stepChapter(1)"]');c1.textContent='⏪ Prev chapter';c2.textContent='Next chapter ⏩';$('reading1').append(c1,c2);
- autoB.style.display='none';$('reading1').appendChild(autoB);$('reading2').appendChild(wrap(voice,'Voice'));mv(rheL,'reading2');mv(showHe,'reading2');$('reading2').appendChild(rthS.closest('.row'));
+ autoB.style.display='none';$('reading1').appendChild(autoB);$('reading1').appendChild(wrap(voice,'Voice'));$('reading1').insertAdjacentHTML('beforeend',`<label class="dim">Pitch <input type="range" id="vPitch" min="0.5" max="1.5" step="0.1"></label><button onclick="testVoice()">Test voice</button><div class="dim" id="vHint" style="display:none">No voices found. Install one in your phone's Settings › Text-to-speech (e.g. Speech Services by Google › Install voice data), then reopen the app.</div><div class="dim">Narration speed follows the Speed control.</div>`);vPitch.value=S.pitch||1;vPitch.oninput=()=>{S.pitch=vPitch.value;persist()};loadVoices();mv(rheL,'reading2');mv(showHe,'reading2');$('reading2').appendChild(rthS.closest('.row'));
  mv(slp,'sleep1');mv(slpS,'sleep1');mv(Q('[onclick="nightOn()"]'),'sleep1');mv(Q('[onclick="prayOn()"]'),'sleep1');$('sleep2').appendChild($('s-sleep').firstElementChild);
  $('tools1').innerHTML=[['🔎 Search','setTab(\'find\')'],['⏭ Up Next','setTab(\'queue\')'],['📝 Notes & highlights','setTab(\'me\')'],['🧠 Recall','setTab(\'recall\')'],['⚡ Flash reading','setTab(\'book\');setTimeout(flToggle,300)'],['👤 Profile & share','setTab(\'prof\')'],['⬇ Save WAV','saveWav()']].map(([t,f])=>`<button style="margin:4px" onclick="closeSheet();${f}">${t}</button>`).join('');
  $('tools2').appendChild(wrap(mins,'WAV length'));$('tools2').insertAdjacentHTML('beforeend','<button style="margin:4px" onclick="closeSheet();setTab(\'mine\')">✍ My passages</button><button style="margin:4px" onclick="closeSheet();setTab(\'read\')">🎧 Listening list</button>');$('tools2').appendChild(bl1);
