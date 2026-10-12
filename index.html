@@ -24,7 +24,10 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
 .rb-light .dim,.rb-sepia .dim{color:#6d6658}.rb-night .dim{color:#4a1a0e}.rb-night select,.rb-night input,.rb-night button{background:#120503;color:#7a2a18;border-color:#2a0d07}
 .rb-light select,.rb-light input,.rb-light button:not(.g):not(.sw),.rb-sepia select,.rb-sepia input,.rb-sepia button:not(.g):not(.sw){background:#0000000d;color:inherit;border-color:#0002}
 .rv{padding:3px 6px;border-radius:6px;cursor:pointer;border-left:3px solid transparent}.rv sup{color:#b08a30;font-size:.65em;margin-right:3px}.rv.sel{outline:2px solid #b08a30}.rb-night .rv sup{color:#5a1a10}
-#rbar{position:sticky;bottom:150px;display:none;background:#262333;color:#ece9f2;border-radius:14px;padding:8px;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}.rb-night #rbar{background:#140604;color:#7a2a18}</style></head><body>
+#rbar{position:sticky;bottom:150px;display:none;background:#262333;color:#ece9f2;border-radius:14px;padding:8px;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}.rb-night #rbar{background:#140604;color:#7a2a18}
+#pray{display:none;position:fixed;inset:0;z-index:21;background:#0a0910;color:#6f6a80;text-align:center;padding:40px 24px}#pray .dot{width:90px;height:90px;border-radius:50%;margin:22vh auto 30px;background:#d9b65a22;animation:pb 6s ease-in-out infinite}@keyframes pb{50%{transform:scale(1.35);background:#d9b65a44}}
+#pray button,#pray select{margin:6px;background:#17161e;color:#9a95a8}body.pm header,body.pm #player,body.pm #selbar,body.pm main{display:none}body.pm #pray{display:block}
+#flash{display:none;margin:8px 0;padding:14px;border-radius:14px;border:1px solid #8884;text-align:center}#flw{font:600 2.4em Georgia,serif;min-height:1.6em;margin:18px 0 6px;white-space:nowrap}#flw b{color:#d9b65a}#flash input[type=range]{accent-color:#d9b65a;width:160px}</style></head><body>
 <header><div class="top"><h1>Logos Theta</h1><button id="resumeB" onclick="resume()" title="Jump to last highlight">🔖 Resume</button></div>
 <nav id="tabs"></nav></header>
 <main>
@@ -35,7 +38,10 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
 <section id="s-book"><div class="row"><select id="rbS" onchange="rOpen(this.value,1)"></select><select id="rcS" onchange="rOpen(S.r.b,+this.value)"></select>
  <button onclick="rStep(-1)">◀</button><button onclick="rStep(1)">▶</button><button onclick="rResume()">🔖 Resume</button></div>
  <div class="row" style="margin-top:6px"><button onclick="rFs(-1)">A−</button><button onclick="rFs(1)">A+</button><select id="rthS" onchange="S.r.theme=this.value;persist();rTheme()"><option value="dark">Dark</option><option value="light">Light</option><option value="sepia">Sepia</option><option value="night">Night (dim red)</option></select>
- <label class="dim" id="rheL"><input type="checkbox" id="rhe" onchange="S.r.he=this.checked;persist();rDraw()"> Hebrew (Torah)</label><button onclick="rMarkCh()">✓ Mark chapter read</button></div>
+ <label class="dim" id="rheL"><input type="checkbox" id="rhe" onchange="S.r.he=this.checked;persist();rDraw()"> Hebrew (Torah)</label><button onclick="rMarkCh()">✓ Mark chapter read</button><button onclick="flToggle()" title="Word-by-word flash reading">⚡ Flash</button></div>
+ <div id="flash"><div id="flr" class="dim"></div><div id="flw">·</div><div class="row" style="justify-content:center"><button onclick="flStep(-10)" title="Back 10 words">⏪</button><button class="g" id="flpp" onclick="flPlay()">▶</button><button onclick="flStep(10)" title="Forward 10 words">⏩</button>
+  <label class="dim"><input type="range" id="flS" min="150" max="600" step="10" oninput="S.fw=+this.value;flv.textContent=this.value;persist()"> <span id="flv"></span> wpm</label>
+  <label class="dim"><input type="checkbox" id="flP" onchange="S.fp=this.checked;persist()"> Pause on punctuation</label><button onclick="flToggle()">✕</button></div><div class="dim">Starts at the selected verse. Theta playback keeps running underneath.</div></div>
  <div id="rprog" class="prog"></div><input type="search" id="rq" placeholder="Search this book…" oninput="rSearch()"><div id="rres"></div><div id="rtext"></div>
  <div id="rbar"><b id="rref"></b><button class="g" onclick="rPlay()">▶ Play with theta</button><button id="rSend" onclick="rSendP()">→ Send to player</button><button onclick="rQueue()">＋ Up Next</button><span id="rsws"></span><button onclick="rHl(null)">✕</button><button onclick="rsel=null;rDraw()">Done</button><div id="rmode" class="dim" style="width:100%"></div></div></section>
 <section id="s-prof"><div class="card"><div class="dim">No server, no accounts, no live sync. Nothing leaves this device unless you send a link yourself. Friends see updates only when you send them a new link.</div>
@@ -59,6 +65,9 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
  <span id="sws"></span><button onclick="hlSel(null)" title="Remove highlight">✕</button><button onclick="clearSel()">Done</button></div></div>
 <div id="night"><div style="font-size:14px">Night mode · looping</div><div id="nref" style="font-size:18px;margin-top:8px"></div><div id="nv" class="nv"></div>
  <div style="margin-top:30px"><button onclick="toggle()" id="npp">⏯</button><button onclick="nightOff()">Exit</button></div></div>
+<div id="pray"><div style="font-size:14px">Pray · theta pulse only</div><div class="dot"></div>
+ <div><select id="prB" onchange="band.value=S.band=this.value;persist();prayStart()"><option value="6">Theta 6 Hz</option><option value="4.5">Deep theta 4.5 Hz</option><option value="7.5">Light theta 7.5 Hz</option><option value="10">Alpha 10 Hz</option></select></div>
+ <div><button onclick="prayPP()" id="prPP">⏸</button><button onclick="prayOff()">Exit</button></div><div class="dim" style="margin-top:20px">Headphones · letter tones and narration muted</div></div>
 <div id="player"><div id="np">—</div><input type="range" id="seek" min="0" max="1000" value="0"><div class="t"><span id="el">0:00</span><span id="st" class="dim"></span><span id="tot">0:00</span></div>
  <div class="ctl"><button id="shB" onclick="toggleShuffle()" title="Shuffle">🔀</button><button onclick="prev()" title="Previous">⏮</button><button id="pp" onclick="toggle()">▶</button><button onclick="next(true)" title="Next">⏭</button>
  <select id="spd" title="Reading speed"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>1.75</option><option>2</option></select>
@@ -68,7 +77,7 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
  <select id="mins"><option value="0">Length: one reading</option><option value="5">Loop 5 min</option><option value="10">Loop 10 min</option><option value="20">Loop 20 min</option></select>
  <button onclick="saveWav()">⬇ Save WAV</button>
  <select id="slp" onchange="setSleep(+this.value)"><option value="0">Sleep timer: off</option><option>15</option><option>30</option><option>45</option><option>60</option><option>90</option></select><span id="slpS" class="dim"></span>
- <button onclick="nightOn()">🌙 Night mode</button></div>
+ <button onclick="nightOn()">🌙 Night mode</button><button onclick="prayOn()">🙏 Pray mode</button></div>
  <div class="row"><label><input type="checkbox" id="narr"> KJV narration (speech)</label><select id="voice"></select></div>
  <div class="dim">Narration uses your device's speechSynthesis voice; it is not included in the saved WAV.</div><div class="dim">Use headphones for the binaural layer. Output is capped at half volume.</div></div></div>
 <script>
@@ -107,15 +116,15 @@ const dueList=()=>Object.entries(S.srs).filter(([k,p])=>p.due&&p.due<=now()).sor
 
 // ---- synthesis: same gematria mapping; parts = verse texts; returns buffer + verse start times
 const SR=12000;
-function build(parts,beat,speed,theta,mins,droneOnly){const ev=[],marks=[];let T=0;
+function build(parts,beat,speed,theta,mins,droneOnly,pulseOnly){const ev=[],marks=[];let T=0;if(pulseOnly)parts=[];
  parts.forEach((text,pi)=>{marks.push(T);for(const line of text.split("\n")){for(const w of line.split(/\s+/)){const vs=[...w].map(val).filter(x=>x);if(!vs.length)continue;
   const drone=DRONES[vs.reduce((a,b)=>a+b,0)%3];if(droneOnly){ev.push([0,drone,.42/speed]);T+=.42/speed}else for(const v of vs){ev.push([tone(v),drone,.35/speed]);T+=.35/speed}ev.push([0,0,.15/speed]);T+=.15/speed}ev.push([0,0,.8/speed]);T+=.8/speed}});
  if(!ev.length)ev.push([0,0,1]),T=1;const secs=mins>0?mins*60:T+1,n=Math.floor(SR*secs),buf=new AudioBuffer({numberOfChannels:2,length:n,sampleRate:SR}),L=buf.getChannelData(0),R=buf.getChannelData(1),w=2*Math.PI;
  let i=0,k=0;while(i<n){const [f,d,dur]=ev[k%ev.length];k++;const m=Math.max(1,Math.floor(SR*dur));
-  for(let j=0;j<m&&i<n;j++,i++){if(!f&&!d)continue;const t=j/SR,e=Math.pow(Math.sin(Math.PI*t/dur),2),b=(f?.5*Math.sin(w*f*t):0)+(f?.25:.45)*Math.sin(w*d*t);
+  for(let j=0;j<m&&i<n;j++,i++){if(!f&&!d&&!pulseOnly)continue;const t=j/SR,e=pulseOnly?1:Math.pow(Math.sin(Math.PI*t/dur),2),b=pulseOnly?0:(f?.5*Math.sin(w*f*t):0)+(f?.25:.45)*Math.sin(w*d*t);
    if(theta){L[i]=e*(b+.25*Math.sin(w*200*i/SR));R[i]=e*(b+.25*Math.sin(w*(200+beat)*i/SR))}else{L[i]=R[i]=e*b}}}
- let pk=0,p=0;const fd=Math.min(3,secs/4);for(i=0;i<n;i++){const t=i/SR,iso=theta?.6+.4*(Math.sin(w*beat*t)>0?1:0):1;p=p*.98+(Math.random()*2-1)*.02;
-  const fade=Math.min(1,t/fd,(secs-t)/fd);L[i]=(L[i]*iso+.4*p)*fade;R[i]=(R[i]*iso+.4*p)*fade;const a=Math.abs(L[i]),c=Math.abs(R[i]);if(a>pk)pk=a;if(c>pk)pk=c}
+ let pk=0,p=0;const fd=Math.min(3,secs/4);for(i=0;i<n;i++){const t=i/SR,iso=theta?.6+.4*(Math.sin(w*beat*t)>0?1:0):1;p=pulseOnly?0:p*.98+(Math.random()*2-1)*.02;
+  const fade=pulseOnly?1:Math.min(1,t/fd,(secs-t)/fd);L[i]=(L[i]*iso+.4*p)*fade;R[i]=(R[i]*iso+.4*p)*fade;const a=Math.abs(L[i]),c=Math.abs(R[i]);if(a>pk)pk=a;if(c>pk)pk=c}
  const g=.5/(pk||1);for(i=0;i<n;i++){L[i]*=g;R[i]*=g}return{buf,marks,pass:T}}
 
 // ---- narration-clock mode: per-verse looping segments held until each utterance ends, 300 ms crossfades
@@ -192,6 +201,26 @@ let night=false,wl=null;async function nightOn(){night=true;document.body.classL
  try{wl=await navigator.wakeLock.request('screen')}catch(e){}if(!playing)toggle()}
 function nightOff(){night=false;document.body.classList.remove('nm');try{wl&&wl.release()}catch(e){}wl=null}
 document.addEventListener('visibilitychange',async()=>{if(night&&document.visibilityState=='visible')try{wl=await navigator.wakeLock.request('screen')}catch(e){}});
+// ---- pray mode: theta pulse only (build(...,pulseOnly) = 200 / 200+beat binaural + isochronic, no tones/noise/narration), seamless 60 s loop
+let prayM=false,prSrc=null,prG=null,prOn=false;
+function prayStop(){if(prSrc){const s=prSrc,g=prG;prSrc=null;try{g.gain.setTargetAtTime(0,ctx.currentTime,.3);s.stop(ctx.currentTime+1.5)}catch(e){}}prOn=false;prPP.textContent='▶'}
+function prayStart(){ensureCtx();prayStop();const r=build([],+S.band,1,true,1,false,true);prG=ctx.createGain();prG.gain.value=0;prG.connect(gain);
+ prSrc=ctx.createBufferSource();prSrc.buffer=r.buf;prSrc.loop=true;prSrc.connect(prG);prSrc.start();prG.gain.setTargetAtTime(1,ctx.currentTime,1);prOn=true;prPP.textContent='⏸'}
+function prayPP(){prOn?prayStop():prayStart()}
+async function prayOn(){if(playing||nmA)pause();spkStop();if(night)nightOff();flStop();prayM=true;prB.value=S.band;document.body.classList.add('pm');prayStart();try{wl=await navigator.wakeLock.request('screen')}catch(e){}}
+function prayOff(){prayM=false;prayStop();document.body.classList.remove('pm');try{wl&&wl.release()}catch(e){}wl=null}
+// ---- flash reading (RSVP) over the Read tab's KJV chapter; independent of audio so the theta layer can keep playing
+let flW=[],flI=0,flT=null;
+function flWords(){const vs=rbook.c[S.r.c-1];flW=[];flW.chap=S.r.b+S.r.c;vs.forEach((t,i)=>t.split(/\s+/).filter(x=>x).forEach(w=>flW.push([w,i+1])))}
+function flShow(){const x=flW[flI];if(!x){flw.textContent='·';return}const w=x[0],o=Math.min(w.length-1,Math.max(0,Math.ceil(w.length*.35)-1));
+ flw.innerHTML=esc(w.slice(0,o))+'<b>'+esc(w[o])+'</b>'+esc(w.slice(o+1));flr.textContent=`${S.r.b} ${S.r.c}:${x[1]} · word ${flI+1}/${flW.length}`}
+function flTick(){flShow();const w=(flW[flI]||[''])[0];let ms=60000/(S.fw||250);if(S.fp){if(/[.;:?!]["')]*$/.test(w))ms*=2.2;else if(/[,]["')]*$/.test(w))ms*=1.5}if(w.length>9)ms*=1.2;
+ flI++;if(flI>=flW.length){flT=null;flpp.textContent='▶';flI=0;return}flT=setTimeout(flTick,ms)}
+function flStop(){clearTimeout(flT);flT=null;if(window.flpp)flpp.textContent='▶'}
+function flPlay(){if(flT)return flStop();if(!rbook)return;if(!flW.length)flWords();flpp.textContent='⏸';flTick()}
+function flStep(d){if(!flW.length)return;flI=Math.max(0,Math.min(flW.length-1,flI+d));flShow()}
+function flToggle(){const on=flash.style.display!='block';flStop();flash.style.display=on?'block':'none';if(!on||!rbook)return;flS.value=S.fw=S.fw||250;flv.textContent=S.fw;flP.checked=S.fp!==false;S.fp=flP.checked;
+ flWords();const v=rsel&&rsel.c==S.r.c?rsel.a:1;flI=Math.max(0,flW.findIndex(x=>x[1]==v));flShow();flash.scrollIntoView({block:'center'})}
 // ---- sleep timer: fade over last 45 s, then stop audio + narration
 let slpEnd=0,slpI=null;function setSleep(m){clearInterval(slpI);slpEnd=m?now()+m*60e3:0;if(gain)gain.gain.value=+S.vol;slpS.textContent='';if(!m)return;
  slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;slpS.textContent=' '+fmt(r)+' left';if(gain&&r<45)gain.gain.value=+S.vol*Math.max(0,r/45);
@@ -217,7 +246,7 @@ function rTheme(){$('s-book').className='on rb-'+S.r.theme;rthS.value=S.r.theme;
 function rFs(d){S.r.fs=Math.max(12,Math.min(32,S.r.fs+d*2));persist();rTheme()}
 function rStep(d){const i=META.findIndex(m=>m[0]==S.r.b);let b=S.r.b,c=S.r.c+d;if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}rsel=null;rOpen(b,c)}
 let rObs=null;
-function rDraw(){if(!rbook||rbook.b!=S.r.b)return;const b=S.r.b,c=S.r.c,vs=rbook.c[c-1],hs=S.r.he&&rbook.h?rbook.h[c-1]:null;
+function rDraw(){if(!rbook||rbook.b!=S.r.b)return;if(window.flash&&flW.length&&flW.chap!=S.r.b+S.r.c){flStop();flW=[];flash.style.display='none'}const b=S.r.b,c=S.r.c,vs=rbook.c[c-1],hs=S.r.he&&rbook.h?rbook.h[c-1]:null;
  rtext.innerHTML=`<h2 style="font:600 1.2em Georgia,serif">${b} ${c}</h2>`+vs.map((t,i)=>{const v=i+1,k=rKey(b,c,v),h=S.hl[k],sl=rsel&&rsel.c==c&&v>=rsel.a&&v<=rsel.z;
   return`<div id="r${k}" data-v="${v}" class="rv${sl?' sel':''}" style="${h?`background:${h}44;border-left-color:${h}`:''}" onclick="rTap(${v})">${hs?`<div class="he">${hs[i]}</div>`:''}<sup>${v}</sup>${esc(t)}</div>`}).join('');
  rbar.style.display=rsel?'flex':'none';if(rsel){rref.textContent=`${b} ${c}:${rsel.a}${rsel.z>rsel.a?'-'+rsel.z:''}`;rSend.style.display=rSupported()?'':'none';
