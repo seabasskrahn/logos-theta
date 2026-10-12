@@ -20,7 +20,11 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
 .ctl .on{color:#d9b65a}#np{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#vol{width:80px;accent-color:#d9b65a}
 #more{display:none;border-top:1px solid #2c2938;margin-top:8px;padding-top:8px}.q{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #24222e}.q span{flex:1}.q button{padding:4px 9px}
 .v.spk{box-shadow:inset 0 0 0 2px #6c9be0}#night{display:none;position:fixed;inset:0;z-index:20;background:#000;color:#5a1a10;padding:40px 24px;text-align:center}
-#night button{background:#1a0805;color:#7a2a18;margin:6px}#night .nv{font-size:20px;margin-top:30px;color:#6a2414}body.nm header,body.nm #player,body.nm #selbar,body.nm main{display:none}body.nm #night{display:block}</style></head><body>
+#night button{background:#1a0805;color:#7a2a18;margin:6px}#night .nv{font-size:20px;margin-top:30px;color:#6a2414}body.nm header,body.nm #player,body.nm #selbar,body.nm main{display:none}body.nm #night{display:block}#s-book{border-radius:14px;padding:10px;margin:0 -6px}.rb-dark{background:#0f0e14;color:#ece9f2}.rb-light{background:#fbfaf7;color:#1b1a1f}.rb-sepia{background:#f3e7cf;color:#4a3a28}.rb-night{background:#000;color:#6a2414}
+.rb-light .dim,.rb-sepia .dim{color:#6d6658}.rb-night .dim{color:#4a1a0e}.rb-night select,.rb-night input,.rb-night button{background:#120503;color:#7a2a18;border-color:#2a0d07}
+.rb-light select,.rb-light input,.rb-light button:not(.g):not(.sw),.rb-sepia select,.rb-sepia input,.rb-sepia button:not(.g):not(.sw){background:#0000000d;color:inherit;border-color:#0002}
+.rv{padding:3px 6px;border-radius:6px;cursor:pointer;border-left:3px solid transparent}.rv sup{color:#b08a30;font-size:.65em;margin-right:3px}.rv.sel{outline:2px solid #b08a30}.rb-night .rv sup{color:#5a1a10}
+#rbar{position:sticky;bottom:150px;display:none;background:#262333;color:#ece9f2;border-radius:14px;padding:8px;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}.rb-night #rbar{background:#140604;color:#7a2a18}</style></head><body>
 <header><div class="top"><h1>Logos Theta</h1><button id="resumeB" onclick="resume()" title="Jump to last highlight">🔖 Resume</button></div>
 <nav id="tabs"></nav></header>
 <main>
@@ -28,6 +32,12 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
  <div class="row"><select id="bookS" onchange="openCh(this.value,firstCh(this.value))"></select><select id="chS" onchange="openCh(bookS.value,this.value)"></select>
  <label class="dim"><input type="checkbox" id="showHe" checked onchange="S.showHe=this.checked;persist();drawRead()"> Hebrew</label></div>
  <div class="dim">Tap a verse to select, tap another to extend the range, tap again to start over.</div><div id="verses"></div></section>
+<section id="s-book"><div class="row"><select id="rbS" onchange="rOpen(this.value,1)"></select><select id="rcS" onchange="rOpen(S.r.b,+this.value)"></select>
+ <button onclick="rStep(-1)">◀</button><button onclick="rStep(1)">▶</button><button onclick="rResume()">🔖 Resume</button></div>
+ <div class="row" style="margin-top:6px"><button onclick="rFs(-1)">A−</button><button onclick="rFs(1)">A+</button><select id="rthS" onchange="S.r.theme=this.value;persist();rTheme()"><option value="dark">Dark</option><option value="light">Light</option><option value="sepia">Sepia</option><option value="night">Night (dim red)</option></select>
+ <label class="dim" id="rheL"><input type="checkbox" id="rhe" onchange="S.r.he=this.checked;persist();rDraw()"> Hebrew (Torah)</label><button onclick="rMarkCh()">✓ Mark chapter read</button></div>
+ <div id="rprog" class="prog"></div><input type="search" id="rq" placeholder="Search this book…" oninput="rSearch()"><div id="rres"></div><div id="rtext"></div>
+ <div id="rbar"><b id="rref"></b><button class="g" onclick="rPlay()">▶ Play with theta</button><button id="rSend" onclick="rSendP()">→ Send to player</button><button onclick="rQueue()">＋ Up Next</button><span id="rsws"></span><button onclick="rHl(null)">✕</button><button onclick="rsel=null;rDraw()">Done</button><div id="rmode" class="dim" style="width:100%"></div></div></section>
 <section id="s-find"><div class="dim">Smart sort · local (plain JS on this device, no AI, no network)</div>
  <input type="search" id="q" placeholder="Search reference, English or Hebrew…" oninput="drawFind()">
  <div id="chips"></div><div class="row" style="margin-top:8px"><button class="g" onclick="suggest()">✨ Suggest</button><span class="dim">ranks by theme overlap with the current track + SM-2 due dates</span></div><div id="results"></div></section>
@@ -60,7 +70,11 @@ const HEB="אבגדהוזחטיכלמנסעפצקרשתךםןףץ",HV=[1,2,3,4,5
 const GRK="αβγδεϛζηθικλμνξοπϙρστυφχψω",GV=[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800];
 function val(c){let i=HEB.indexOf(c);if(i>=0)return HV[i];c=c.toLowerCase().normalize('NFD')[0]||'';i=GRK.indexOf(c=='ς'?'σ':c);if(i>=0)return GV[i];
  i="abcdefghijklmnopqrstuvwxyz".indexOf(c);return i>=0?i+1:0}
-const tone=v=>110*Math.pow(2,2*Math.log(v)/Math.log(800));
+const tone0=v=>110*Math.pow(2,2*Math.log(v)/Math.log(800));
+// harmonic set over a 100 Hz root: harmonics 2-4 and just ratios 1, 9/8, 5/4, 3/2, 5/3 on each octave, 110-440 Hz
+const HSET=[...new Set([100,200,400].flatMap(r=>[1,9/8,5/4,3/2,5/3].map(q=>+(r*q).toFixed(2))).concat([200,300,400]))].filter(f=>f>=110&&f<=440).sort((a,b)=>a-b);
+const tone=v=>{const f=tone0(v);return HSET.reduce((a,b)=>Math.abs(Math.log(b/f))<Math.abs(Math.log(a/f))?b:a)};
+const DRONES=[50,100,150];
 const DAY=864e5,now=()=>Date.now(),$=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const BOOKS=Object.keys(BIBLE),COLORS=["#d9b65a","#6fb38a","#6c9be0","#d27aa8","#e08a5a"];
 const TAGS={Creation:/creat|made|firmament|light|heaven|seas|herb|beast/i,Covenant:/covenant|swear|sware|oath/i,Blessing:/bless/i,Promise:/promise|seed|multiply|give th(ee|is) land/i,
@@ -75,9 +89,10 @@ if(!S){const old=JSON.parse(localStorage.lt||'null');S={sel:{b:"Exodus",c:"20",a
  if(old){const g=old.passages.find(p=>p.ref=="Genesis 1:1-3");if(g)S.srs["Genesis.1.1-3"]={interval:g.interval,ease:g.ease,due:g.due,reps:g.reps,history:g.history}}}
 const persist=()=>{try{localStorage.lt2=JSON.stringify(S)}catch(e){}};
 // tracks: verse range {b,c,a,z} or custom {cid}
-function track(s){if(s.cid){const p=S.custom.find(x=>x.id==s.cid);return p&&{key:'c'+p.id,ref:p.ref,parts:[p.orig||p.eng],eng:p.eng,keys:[],tags:Object.keys(TAGS).filter(k=>TAGS[k].test(p.eng))}}
+function track(s){if(!s)return null;if(s.rb){const t=s.h?s.h:s.e;return{key:'r:'+s.rb+'.'+s.c+'.'+s.a+(s.z>s.a?'-'+s.z:''),ref:`${s.rb} ${s.c}:${s.a}${s.z>s.a?'-'+s.z:''}`,parts:t,engParts:s.e,eng:s.e.join(' '),keys:s.e.map((_,i)=>s.rb+'.'+s.c+'.'+(s.a+i)),tags:Object.keys(TAGS).filter(k=>TAGS[k].test(s.e.join(' '))),droneOnly:!s.h,narrate:!s.h}}
+ if(s.cid){const p=S.custom.find(x=>x.id==s.cid);return p&&{engParts:[p.eng],key:'c'+p.id,ref:p.ref,parts:[p.orig||p.eng],eng:p.eng,keys:[],tags:Object.keys(TAGS).filter(k=>TAGS[k].test(p.eng))}}
  const vs=BIBLE[s.b][s.c].slice(s.a-1,s.z),ks=vs.map((_,i)=>s.b+'.'+s.c+'.'+(s.a+i));
- return{key:s.b+'.'+s.c+'.'+s.a+(s.z>s.a?'-'+s.z:''),ref:`${s.b} ${s.c}:${s.a}${s.z>s.a?'-'+s.z:''}`,parts:vs.map(x=>x[0]||x[1]),eng:vs.map(x=>x[1]).join(' '),keys:ks,tags:[...new Set(ks.flatMap(k=>ALL[IDX[k]].tags))]}}
+ return{engParts:vs.map(x=>x[1]),key:s.b+'.'+s.c+'.'+s.a+(s.z>s.a?'-'+s.z:''),ref:`${s.b} ${s.c}:${s.a}${s.z>s.a?'-'+s.z:''}`,parts:vs.map(x=>x[0]||x[1]),eng:vs.map(x=>x[1]).join(' '),keys:ks,tags:[...new Set(ks.flatMap(k=>ALL[IDX[k]].tags))]}}
 const srs=k=>S.srs[k]||(S.srs[k]={interval:0,ease:2.5,due:0,reps:0,history:[]});
 function grade(k,q){const p=srs(k);if(q<3){p.reps=0;p.interval=1}else{p.reps++;p.interval=p.reps==1?1:p.reps==2?3:Math.round(p.interval*p.ease)}
  p.ease=Math.max(1.3,p.ease+0.1-(5-q)*(0.08+(5-q)*0.02));p.due=now()+p.interval*DAY;p.history.push({t:now(),q});persist();drawRecall()}
@@ -85,49 +100,67 @@ const dueList=()=>Object.entries(S.srs).filter(([k,p])=>p.due&&p.due<=now()).sor
 
 // ---- synthesis: same gematria mapping; parts = verse texts; returns buffer + verse start times
 const SR=12000;
-function build(parts,beat,speed,theta,mins){const ev=[],marks=[];let T=0;
+function build(parts,beat,speed,theta,mins,droneOnly){const ev=[],marks=[];let T=0;
  parts.forEach((text,pi)=>{marks.push(T);for(const line of text.split("\n")){for(const w of line.split(/\s+/)){const vs=[...w].map(val).filter(x=>x);if(!vs.length)continue;
-  const drone=55*Math.pow(2,(vs.reduce((a,b)=>a+b,0)%400)/400);for(const v of vs){ev.push([tone(v),drone,.35/speed]);T+=.35/speed}ev.push([0,0,.15/speed]);T+=.15/speed}ev.push([0,0,.8/speed]);T+=.8/speed}});
+  const drone=DRONES[vs.reduce((a,b)=>a+b,0)%3];if(droneOnly){ev.push([0,drone,.42/speed]);T+=.42/speed}else for(const v of vs){ev.push([tone(v),drone,.35/speed]);T+=.35/speed}ev.push([0,0,.15/speed]);T+=.15/speed}ev.push([0,0,.8/speed]);T+=.8/speed}});
  if(!ev.length)ev.push([0,0,1]),T=1;const secs=mins>0?mins*60:T+1,n=Math.floor(SR*secs),buf=new AudioBuffer({numberOfChannels:2,length:n,sampleRate:SR}),L=buf.getChannelData(0),R=buf.getChannelData(1),w=2*Math.PI;
  let i=0,k=0;while(i<n){const [f,d,dur]=ev[k%ev.length];k++;const m=Math.max(1,Math.floor(SR*dur));
-  for(let j=0;j<m&&i<n;j++,i++){if(!f)continue;const t=j/SR,e=Math.pow(Math.sin(Math.PI*t/dur),2),b=.5*Math.sin(w*f*t)+.25*Math.sin(w*d*t);
+  for(let j=0;j<m&&i<n;j++,i++){if(!f&&!d)continue;const t=j/SR,e=Math.pow(Math.sin(Math.PI*t/dur),2),b=(f?.5*Math.sin(w*f*t):0)+(f?.25:.45)*Math.sin(w*d*t);
    if(theta){L[i]=e*(b+.25*Math.sin(w*200*i/SR));R[i]=e*(b+.25*Math.sin(w*(200+beat)*i/SR))}else{L[i]=R[i]=e*b}}}
  let pk=0,p=0;const fd=Math.min(3,secs/4);for(i=0;i<n;i++){const t=i/SR,iso=theta?.6+.4*(Math.sin(w*beat*t)>0?1:0):1;p=p*.98+(Math.random()*2-1)*.02;
   const fade=Math.min(1,t/fd,(secs-t)/fd);L[i]=(L[i]*iso+.4*p)*fade;R[i]=(R[i]*iso+.4*p)*fade;const a=Math.abs(L[i]),c=Math.abs(R[i]);if(a>pk)pk=a;if(c>pk)pk=c}
  const g=.5/(pk||1);for(i=0;i<n;i++){L[i]*=g;R[i]*=g}return{buf,marks,pass:T}}
 
+// ---- narration-clock mode: per-verse looping segments held until each utterance ends, 300 ms crossfades
+let nmA=false,nIdx=0,nTok=0,nSrc=null,nG=null,nSegs={},nTimer=null;
+const narrOn=()=>!!(SS&&cur&&rendered&&(S.narr||rendered.t.narrate)&&rendered.t.engParts);
+function nSeg(i){const k=i+'|'+S.speed+'|'+S.band+'|'+S.theta;if(!nSegs[k])nSegs[k]=build([rendered.t.parts[i]||''],+S.band,+S.speed,S.theta,0,rendered.t.droneOnly).buf;return nSegs[k]}
+function nFadeOut(){if(nSrc){const s=nSrc,g=nG,t=ctx.currentTime;g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+.3);setTimeout(()=>{try{s.stop()}catch(e){}s.disconnect();g.disconnect()},400)}nSrc=nG=null}
+function nStop(){nTok++;clearTimeout(nTimer);if(nmA&&ctx)nFadeOut();if(SS)SS.cancel();nmA=false}
+function nStart(i){ensureCtx();const t=rendered.t,n=t.engParts.length;if(i>=n){nStop();playing=false;markPlayed(1e9);ended();return}
+ i=Math.max(0,i);if(SS)SS.cancel();clearTimeout(nTimer);const tok=++nTok;nmA=true;playing=true;nIdx=i;pp.textContent="⏸";
+ nFadeOut();const b=nSeg(i),src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=b;src.loop=true;src.loopStart=Math.min(b.duration*.25,1);src.loopEnd=Math.max(src.loopStart+.5,b.duration-Math.min(b.duration*.25,1));
+ g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(1,ctx.currentTime+.3);src.connect(g).connect(gain);src.start();nSrc=src;nG=g;
+ const k=t.keys[i];if(k in IDX&&!S.played[k]){S.played[k]=1;persist();drawProg()}
+ document.querySelectorAll('.spk').forEach(e=>e.classList.remove('spk'));const x=ALL[IDX[k]];if(x&&S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}const re=k&&$('r'+k);re&&re.classList.add('spk');
+ const txt=t.engParts[i]||'';if(night)nv.textContent=txt;const go=()=>{if(tok==nTok&&playing)nStart(i+1)};
+ const u=new SpeechSynthesisUtterance(txt);u.rate=Math.min(2,Math.max(.5,+S.speed));u.lang='en-GB';const vv=voices[+voice.value];if(vv)u.voice=vv;u.onend=go;
+ // safety net if a browser drops onend: generous estimate
+ nTimer=setTimeout(go,(txt.split(/\s+/).length*0.6/u.rate+4)*1000);SS.speak(u);upd()}
+function nPause(){offset=rendered.marks[nIdx]||0;nStop();playing=false;pp.textContent="▶";upd()}
+const verseAt=o=>{const m=rendered.marks,p=o%(rendered.pass||1e9);let i=0;while(i+1<m.length&&m[i+1]<=p)i++;return i};
 // ---- player: AudioBuffer with real seek / pause / resume
 let ctx,gain,src,cur=null,rendered=null,offset=0,startedAt=0,playing=false,dragging=false;
 const fmt=s=>{s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 function ensureCtx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();gain.connect(ctx.destination)}gain.gain.value=+S.vol;if(ctx.state=="suspended")ctx.resume()}
-const pos=()=>playing?Math.min(rendered.buf.duration,offset+ctx.currentTime-startedAt):offset;
+const pos=()=>nmA?(rendered.marks[nIdx]||0):playing?Math.min(rendered.buf.duration,offset+ctx.currentTime-startedAt):offset;
 function render(keepFrac){const t=track(cur);if(!t)return;st.textContent="Rendering…";const f=keepFrac&&rendered?pos()/rendered.buf.duration:0;
- rendered=build(t.parts,+S.band,+S.speed,S.theta,+S.mins);rendered.t=t;offset=f*rendered.buf.duration;tot.textContent=fmt(rendered.buf.duration);
- st.textContent=`${S.speed}× · ${S.theta?S.band+' Hz':'theta off'}`}
-function stopSrc(){spkStop();if(src){src.onended=null;try{src.stop()}catch(e){}src.disconnect();src=null}}
-function startAt(o){ensureCtx();stopSrc();offset=Math.max(0,Math.min(o,rendered.buf.duration-.01));src=ctx.createBufferSource();src.buffer=rendered.buf;src.connect(gain);
+ rendered=build(t.parts,+S.band,+S.speed,S.theta,+S.mins,t.droneOnly);rendered.t=t;offset=f*rendered.buf.duration;tot.textContent=fmt(rendered.buf.duration);
+ st.textContent=`${S.speed}× · ${S.theta?S.band+' Hz':'theta off'}${t.droneOnly?' · drone + KJV narration (no letter tones)':''}`}
+function stopSrc(){nStop();spkStop();if(src){src.onended=null;try{src.stop()}catch(e){}src.disconnect();src=null}}
+function startAt(o){ensureCtx();if(narrOn()){stopSrc();return nStart(verseAt(o))}stopSrc();offset=Math.max(0,Math.min(o,rendered.buf.duration-.01));src=ctx.createBufferSource();src.buffer=rendered.buf;src.connect(gain);
  src.onended=()=>{if(!playing)return;playing=false;offset=0;markPlayed(1e9);ended()};src.start(0,offset);startedAt=ctx.currentTime;playing=true;spkIdx=-1;pp.textContent="⏸";tick()}
-function pause(){spkStop();if(!playing)return;offset=pos();playing=false;stopSrc();pp.textContent="▶"}
-function load(sel,autoplay,noHist){if(cur&&!noHist&&track(cur))S.hist.push(cur),S.hist=S.hist.slice(-50);stopSrc();playing=false;cur=sel;S.sel=sel;ensureCtx();render(false);
- const t=rendered.t;np.textContent=t.ref;S.log.push({t:now(),ref:t.ref,band:+S.band,speed:+S.speed});const p=srs(t.key);if(!p.reps&&!p.history.length&&!p.due)p.due=now()+DAY;persist();
+function pause(){if(nmA)return nPause();spkStop();if(!playing)return;offset=pos();playing=false;stopSrc();pp.textContent="▶"}
+function load(sel,autoplay,noHist){nSegs={};if(cur&&!noHist&&track(cur))S.hist.push(cur),S.hist=S.hist.slice(-50);stopSrc();playing=false;cur=sel;S.sel=sel;ensureCtx();render(false);
+ const t=rendered.t;np.textContent=t.ref;S.log.push({t:now(),ref:t.ref,band:+S.band,speed:+S.speed});if(t.key[0]!='r'){const p=srs(t.key);if(!p.reps&&!p.history.length&&!p.due)p.due=now()+DAY}persist();
  if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:t.ref,artist:'Logos Theta'});}
  if(autoplay)startAt(0);else{pp.textContent="▶";upd()}drawRead();drawQueue();drawRecall()}
 function toggle(){if(!cur)return load(S.sel,true);if(!rendered)render(false);playing?pause():startAt(offset)}
 function ended(){if(night)return startAt(0);pp.textContent="▶";if(S.queue.length||S.shuffle)next(false);else upd()}
-function next(manual){if(S.queue.length)return load(S.queue.shift(),true);if(S.shuffle){const k=bagPop(),x=ALL[IDX[k]];S.view={b:x.b,c:x.c};return load({b:x.b,c:x.c,a:x.v,z:x.v},true)}
- if(cur&&!cur.cid){const ch=BIBLE[cur.b][cur.c],len=cur.z-cur.a+1;if(cur.z<ch.length)return load({b:cur.b,c:cur.c,a:cur.z+1,z:Math.min(ch.length,cur.z+len)},true);
+function next(manual){if(nmA&&nIdx+1<rendered.t.engParts.length)return nStart(nIdx+1);if(S.queue.length)return load(S.queue.shift(),true);if(S.shuffle){const k=bagPop(),x=ALL[IDX[k]];S.view={b:x.b,c:x.c};return load({b:x.b,c:x.c,a:x.v,z:x.v},true)}
+ if(cur&&cur.b){const ch=BIBLE[cur.b][cur.c],len=cur.z-cur.a+1;if(cur.z<ch.length)return load({b:cur.b,c:cur.c,a:cur.z+1,z:Math.min(ch.length,cur.z+len)},true);
   const cs=Object.keys(BIBLE[cur.b]),i=cs.indexOf(cur.c);const nb=i<cs.length-1?cur.b:BOOKS[(BOOKS.indexOf(cur.b)+1)%BOOKS.length],nc=i<cs.length-1?cs[i+1]:Object.keys(BIBLE[nb])[0];
   S.view={b:nb,c:nc};return load({b:nb,c:nc,a:1,z:Math.min(len,BIBLE[nb][nc].length)},true)}if(!manual)upd()}
-function prev(){if(rendered&&pos()>3)return startAt(0);const h=S.hist.pop();if(h)load(h,true,true);else if(rendered)startAt(0)}
+function prev(){if(nmA)return nIdx>0?nStart(nIdx-1):startAt(0);if(rendered&&pos()>3)return startAt(0);const h=S.hist.pop();if(h)load(h,true,true);else if(rendered)startAt(0)}
 function bagPop(){if(!S.bag||!S.bag.length)S.bag=ALL.map(x=>x.k);const i=Math.floor(Math.random()*S.bag.length);return S.bag.splice(i,1)[0]}
 function toggleShuffle(){S.shuffle=!S.shuffle;shB.classList.toggle('on',S.shuffle);persist()}
-function markPlayed(t){if(!rendered)return;let ch=false;rendered.t.keys.forEach((k,i)=>{if(rendered.marks[i]<=t%(rendered.pass||1e9)+(t>=rendered.pass?1e9:0)&&!S.played[k]){S.played[k]=1;ch=true}});if(ch){persist();drawProg()}}
-function upd(){if(!rendered)return;const p=pos(),d=rendered.buf.duration;if(!dragging){seek.value=Math.round(p/d*1000);el.textContent=fmt(p)}}
+function markPlayed(t){if(!rendered)return;let ch=false;rendered.t.keys.forEach((k,i)=>{if(!(k in IDX))return;if(rendered.marks[i]<=t%(rendered.pass||1e9)+(t>=rendered.pass?1e9:0)&&!S.played[k]){S.played[k]=1;ch=true}});if(ch){persist();drawProg()}}
+function upd(){if(!rendered)return;if(narrOn()){const n=rendered.t.engParts.length,i=nmA?nIdx:verseAt(offset);if(!dragging){seek.value=Math.round(i/n*1000);el.textContent='verse '+(i+1);tot.textContent=n+' verses'}return}tot.textContent=fmt(rendered.buf.duration);const p=pos(),d=rendered.buf.duration;if(!dragging){seek.value=Math.round(p/d*1000);el.textContent=fmt(p)}}
 let lastMark=0;function tick(){if(!playing)return;upd();narrTick();if(Date.now()-lastMark>1000){lastMark=Date.now();markPlayed(pos())}requestAnimationFrame(tick)}
-seek.oninput=()=>{dragging=true;if(rendered)el.textContent=fmt(seek.value/1000*rendered.buf.duration)};
-seek.onchange=()=>{dragging=false;if(!rendered){if(!cur)load(S.sel,false);}const o=seek.value/1000*rendered.buf.duration;playing?startAt(o):(offset=o,upd())};
+seek.oninput=()=>{dragging=true;if(rendered&&narrOn()){el.textContent='verse '+(Math.min(rendered.t.engParts.length-1,Math.floor(seek.value/1000*rendered.t.engParts.length))+1);return}if(rendered)el.textContent=fmt(seek.value/1000*rendered.buf.duration)};
+seek.onchange=()=>{dragging=false;if(!rendered){if(!cur)load(S.sel,false);}if(narrOn()){const i=Math.min(rendered.t.engParts.length-1,Math.floor(seek.value/1000*rendered.t.engParts.length));if(nmA)nStart(i);else{offset=rendered.marks[i]||0;upd()}return}const o=seek.value/1000*rendered.buf.duration;playing?startAt(o):(offset=o,upd())};
 vol.oninput=()=>{S.vol=vol.value;if(gain)gain.gain.value=+vol.value;persist()};
-function rerender(){if(!cur)return persist();const was=playing;if(was){offset=pos();playing=false;stopSrc()}render(true);upd();if(was)startAt(offset);persist()}
+function rerender(){if(!cur)return persist();nSegs={};if(nmA){const i=nIdx;render(true);nStart(i);persist();return}const was=playing;if(was){offset=pos();playing=false;stopSrc()}render(true);upd();if(was)startAt(offset);persist()}
 spd.onchange=()=>{S.speed=spd.value;rerender()};band.onchange=()=>{S.band=band.value;rerender()};theta.onchange=()=>{S.theta=theta.checked;rerender()};mins.onchange=()=>{S.mins=mins.value;rerender()};
 if('mediaSession' in navigator){const m=navigator.mediaSession;m.setActionHandler('play',toggle);m.setActionHandler('pause',pause);m.setActionHandler('nexttrack',()=>next(true));m.setActionHandler('previoustrack',prev)}
 
@@ -142,11 +175,11 @@ const SS=window.speechSynthesis;let spkIdx=-1,voices=[];
 function loadVoices(){if(!SS)return;voices=SS.getVoices().filter(v=>/^en/i.test(v.lang));voice.innerHTML=voices.map((v,i)=>`<option value="${i}"${v.name==S.voice?' selected':''}>${v.name} (${v.lang})</option>`).join('')||'<option>default voice</option>'}
 if(SS){loadVoices();SS.onvoiceschanged=loadVoices}
 function spkStop(){if(SS)SS.cancel();spkIdx=-1;document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'))}
-function narrTick(){if(!S.narr||!SS||!rendered||!rendered.t.keys.length)return;const p=pos()%(rendered.pass||1e9),m=rendered.marks;let i=0;while(i+1<m.length&&m[i+1]<=p)i++;
- if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]],u=new SpeechSynthesisUtterance(x.e);u.rate=Math.min(2,Math.max(.5,+S.speed));u.lang='en-GB';
+function narrTick(){if(nmA)return;if(!SS||!rendered||!(S.narr||rendered.t.narrate)||!rendered.t.engParts)return;const p=pos()%(rendered.pass||1e9),m=rendered.marks;let i=0;while(i+1<m.length&&m[i+1]<=p)i++;
+ if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]]||{},txt=rendered.t.engParts[i]||'',u=new SpeechSynthesisUtterance(txt);u.rate=Math.min(2,Math.max(.5,+S.speed));u.lang='en-GB';
  const vv=voices[+voice.value];if(vv)u.voice=vv;SS.speak(u);document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'));
- if(S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}if(night)nv.textContent=x.e}
-narr.onchange=()=>{S.narr=narr.checked;persist();if(!S.narr)spkStop()};voice.onchange=()=>{S.voice=(voices[+voice.value]||{}).name;persist();spkIdx=-1};
+ if(x.b&&S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}const re=k&&$('r'+k);re&&re.classList.add('spk');if(night)nv.textContent=txt}
+narr.onchange=()=>{const was=playing,o=pos();if(was){nmA?nPause():pause()}S.narr=narr.checked;persist();if(!S.narr)spkStop();if(was)startAt(o);else upd()};voice.onchange=()=>{S.voice=(voices[+voice.value]||{}).name;persist();spkIdx=-1};
 // ---- night mode
 let night=false,wl=null;async function nightOn(){night=true;document.body.classList.add('nm');if(!cur)load(S.sel,false);nref.textContent=track(cur).ref;nv.textContent=track(cur).eng.slice(0,200);
  try{wl=await navigator.wakeLock.request('screen')}catch(e){}if(!playing)toggle()}
@@ -162,6 +195,43 @@ function drawVotd(){const d=new Date().toDateString();if(S.votdX==d){votd.innerH
  const ks=(pool.size?[...pool].filter(k=>k in IDX).sort():ALL.map(x=>x.k));let h=0;for(const c of d)h=(h*31+c.charCodeAt(0))>>>0;const x=ALL[IDX[ks[h%ks.length]]];
  votd.innerHTML=`<div class="card"><span class="dim">Verse of the day${pool.size?' · from your due/highlighted verses':''}</span><br><b>${x.b} ${x.c}:${x.v}</b><div>${esc(x.e)}</div>
  <button class="g" onclick="load({b:'${x.b}',c:'${x.c}',a:${x.v},z:${x.v}},true)">▶ Play</button> <button onclick="S.votdX='${d}';persist();drawVotd()">Dismiss</button></div>`}
+// ---- Read tab: whole KJV, lazy per-book JSON (Cache API), Hebrew for Torah
+const META=[["Genesis","Genesis.json",[31,25,24,26,32,22,24,22,29,32,32,20,18,24,21,16,27,33,38,18,34,24,20,67,34,35,46,22,35,43,55,32,20,31,29,43,36,30,23,23,57,38,34,34,28,34,31,22,33,26],1],["Exodus","Exodus.json",[22,25,22,31,23,30,25,32,35,29,10,51,22,31,27,36,16,27,25,26,36,31,33,18,40,37,21,43,46,38,18,35,23,35,35,38,29,31,43,38],1],["Leviticus","Leviticus.json",[17,16,17,35,19,30,38,36,24,20,47,8,59,57,33,34,16,30,37,27,24,33,44,23,55,46,34],1],["Numbers","Numbers.json",[54,34,51,49,31,27,89,26,23,36,35,16,33,45,41,50,13,32,22,29,35,41,30,25,18,65,23,31,40,16,54,42,56,29,34,13],1],["Deuteronomy","Deuteronomy.json",[46,37,29,49,33,25,26,20,29,22,32,32,18,29,23,22,20,22,21,20,23,30,25,22,19,19,26,68,29,20,30,52,29,12],1],["Joshua","Joshua.json",[18,24,17,24,15,27,26,35,27,43,23,24,33,15,63,10,18,28,51,9,45,34,16,33],0],["Judges","Judges.json",[36,23,31,24,31,40,25,35,57,18,40,15,25,20,20,31,13,31,30,48,25],0],["Ruth","Ruth.json",[22,23,18,22],0],["1 Samuel","1Samuel.json",[28,36,21,22,12,21,17,22,27,27,15,25,23,52,35,23,58,30,24,42,15,23,29,22,44,25,12,25,11,31,13],0],["2 Samuel","2Samuel.json",[27,32,39,12,25,23,29,18,13,19,27,31,39,33,37,23,29,33,43,26,22,51,39,25],0],["1 Kings","1Kings.json",[53,46,28,34,18,38,51,66,28,29,43,33,34,31,34,34,24,46,21,43,29,53],0],["2 Kings","2Kings.json",[18,25,27,44,27,33,20,29,37,36,21,21,25,29,38,20,41,37,37,21,26,20,37,20,30],0],["1 Chronicles","1Chronicles.json",[54,55,24,43,26,81,40,40,44,14,47,40,14,17,29,43,27,17,19,8,30,19,32,31,31,32,34,21,30],0],["2 Chronicles","2Chronicles.json",[17,18,17,22,14,42,22,18,31,19,23,16,22,15,19,14,19,34,11,37,20,12,21,27,28,23,9,27,36,27,21,33,25,33,27,23],0],["Ezra","Ezra.json",[11,70,13,24,17,22,28,36,15,44],0],["Nehemiah","Nehemiah.json",[11,20,32,23,19,19,73,18,38,39,36,47,31],0],["Esther","Esther.json",[22,23,15,17,14,14,10,17,32,3],0],["Job","Job.json",[22,13,26,21,27,30,21,22,35,22,20,25,28,22,35,22,16,21,29,29,34,30,17,25,6,14,23,28,25,31,40,22,33,37,16,33,24,41,30,24,34,17],0],["Psalms","Psalms.json",[6,12,8,8,12,10,17,9,20,18,7,8,6,7,5,11,15,50,14,9,13,31,6,10,22,12,14,9,11,12,24,11,22,22,28,12,40,22,13,17,13,11,5,26,17,11,9,14,20,23,19,9,6,7,23,13,11,11,17,12,8,12,11,10,13,20,7,35,36,5,24,20,28,23,10,12,20,72,13,19,16,8,18,12,13,17,7,18,52,17,16,15,5,23,11,13,12,9,9,5,8,28,22,35,45,48,43,13,31,7,10,10,9,8,18,19,2,29,176,7,8,9,4,8,5,6,5,6,8,8,3,18,3,3,21,26,9,8,24,13,10,7,12,15,21,10,20,14,9,6],0],["Proverbs","Proverbs.json",[33,22,35,27,23,35,27,36,18,32,31,28,25,35,33,33,28,24,29,30,31,29,35,34,28,28,27,28,27,33,31],0],["Ecclesiastes","Ecclesiastes.json",[18,26,22,16,20,12,29,17,18,20,10,14],0],["Song of Solomon","SongofSolomon.json",[17,17,11,16,16,13,13,14],0],["Isaiah","Isaiah.json",[31,22,26,6,30,13,25,22,21,34,16,6,22,32,9,14,14,7,25,6,17,25,18,23,12,21,13,29,24,33,9,20,24,17,10,22,38,22,8,31,29,25,28,28,25,13,15,22,26,11,23,15,12,17,13,12,21,14,21,22,11,12,19,12,25,24],0],["Jeremiah","Jeremiah.json",[19,37,25,31,31,30,34,22,26,25,23,17,27,22,21,21,27,23,15,18,14,30,40,10,38,24,22,17,32,24,40,44,26,22,19,32,21,28,18,16,18,22,13,30,5,28,7,47,39,46,64,34],0],["Lamentations","Lamentations.json",[22,22,66,22,22],0],["Ezekiel","Ezekiel.json",[28,10,27,17,17,14,27,18,11,22,25,28,23,23,8,63,24,32,14,49,32,31,49,27,17,21,36,26,21,26,18,32,33,31,15,38,28,23,29,49,26,20,27,31,25,24,23,35],0],["Daniel","Daniel.json",[21,49,30,37,31,28,28,27,27,21,45,13],0],["Hosea","Hosea.json",[11,23,5,19,15,11,16,14,17,15,12,14,16,9],0],["Joel","Joel.json",[20,32,21],0],["Amos","Amos.json",[15,16,15,13,27,14,17,14,15],0],["Obadiah","Obadiah.json",[21],0],["Jonah","Jonah.json",[17,10,10,11],0],["Micah","Micah.json",[16,13,12,13,15,16,20],0],["Nahum","Nahum.json",[15,13,19],0],["Habakkuk","Habakkuk.json",[17,20,19],0],["Zephaniah","Zephaniah.json",[18,15,20],0],["Haggai","Haggai.json",[15,23],0],["Zechariah","Zechariah.json",[21,13,10,14,11,15,14,23,17,12,17,14,9,21],0],["Malachi","Malachi.json",[14,17,18,6],0],["Matthew","Matthew.json",[25,23,17,25,48,34,29,34,38,42,30,50,58,36,39,28,27,35,30,34,46,46,39,51,46,75,66,20],0],["Mark","Mark.json",[45,28,35,41,43,56,37,38,50,52,33,44,37,72,47,20],0],["Luke","Luke.json",[80,52,38,44,39,49,50,56,62,42,54,59,35,35,32,31,37,43,48,47,38,71,56,53],0],["John","John.json",[51,25,36,54,47,71,53,59,41,42,57,50,38,31,27,33,26,40,42,31,25],0],["Acts","Acts.json",[26,47,26,37,42,15,60,40,43,48,30,25,52,28,41,40,34,28,41,38,40,30,35,27,27,32,44,31],0],["Romans","Romans.json",[32,29,31,25,21,23,25,39,33,21,36,21,14,23,33,27],0],["1 Corinthians","1Corinthians.json",[31,16,23,21,13,20,40,13,27,33,34,31,13,40,58,24],0],["2 Corinthians","2Corinthians.json",[24,17,18,18,21,18,16,24,15,18,33,21,14],0],["Galatians","Galatians.json",[24,21,29,31,26,18],0],["Ephesians","Ephesians.json",[23,22,21,32,33,24],0],["Philippians","Philippians.json",[30,30,21,23],0],["Colossians","Colossians.json",[29,23,25,18],0],["1 Thessalonians","1Thessalonians.json",[10,20,13,18,28],0],["2 Thessalonians","2Thessalonians.json",[12,17,18],0],["1 Timothy","1Timothy.json",[20,15,16,16,25,21],0],["2 Timothy","2Timothy.json",[18,26,17,22],0],["Titus","Titus.json",[16,15,15],0],["Philemon","Philemon.json",[25],0],["Hebrews","Hebrews.json",[14,18,19,16,14,20,28,13,28,39,40,29,25],0],["James","James.json",[27,26,18,17,20],0],["1 Peter","1Peter.json",[25,25,22,19,14],0],["2 Peter","2Peter.json",[21,22,18],0],["1 John","1John.json",[10,29,24,21,21],0],["2 John","2John.json",[13],0],["3 John","3John.json",[14],0],["Jude","Jude.json",[25],0],["Revelation","Revelation.json",[20,29,22,11,14,17,17,13,21,11,19,17,18,20,8,21,18,24,21,15,27,21],0]],MB={};META.forEach(m=>MB[m[0]]=m);const BKCACHE={};
+if(!S.r)S.r={b:'Genesis',c:1,v:1,fs:18,theme:'dark',he:true};if(!S.rd)S.rd={};let rsel=null,rbook=null;
+async function getBook(b){if(BKCACHE[b])return BKCACHE[b];const url='kjv/'+MB[b][1];let r;
+ try{const c=await caches.open('lt-kjv-v1');r=await c.match(url);if(!r){r=await fetch(url);if(r.ok)c.put(url,r.clone())}}catch(e){r=await fetch(url)}
+ if(!r.ok)throw Error('load failed');return BKCACHE[b]=await r.json()}
+const rKey=(b,c,v)=>b+'.'+c+'.'+v;
+async function rOpen(b,c,v){S.r.b=b;S.r.c=c;if(v)S.r.v=v;persist();rbS.innerHTML=META.map(m=>`<option${m[0]==b?' selected':''}>${m[0]}</option>`).join('');
+ rcS.innerHTML=MB[b][2].map((_,i)=>`<option${i+1==c?' selected':''}>${i+1}</option>`).join('');rTheme();rtext.innerHTML='<div class="dim">Loading…</div>';
+ try{rbook=await getBook(b)}catch(e){rtext.innerHTML='<div class="dim">Could not load '+b+'. Connect once to cache it.</div>';return}
+ if(S.r.b!=b)return;rDraw();if(v){const e=$('r'+rKey(b,c,v));e&&e.scrollIntoView({block:'center'})}else scrollTo(0,0)}
+function rTheme(){$('s-book').className='on rb-'+S.r.theme;rthS.value=S.r.theme;rtext.style.fontSize=S.r.fs+'px';rheL.style.display=MB[S.r.b][3]?'':'none';rhe.checked=S.r.he}
+function rFs(d){S.r.fs=Math.max(12,Math.min(32,S.r.fs+d*2));persist();rTheme()}
+function rStep(d){const i=META.findIndex(m=>m[0]==S.r.b);let b=S.r.b,c=S.r.c+d;if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}rsel=null;rOpen(b,c)}
+let rObs=null;
+function rDraw(){if(!rbook||rbook.b!=S.r.b)return;const b=S.r.b,c=S.r.c,vs=rbook.c[c-1],hs=S.r.he&&rbook.h?rbook.h[c-1]:null;
+ rtext.innerHTML=`<h2 style="font:600 1.2em Georgia,serif">${b} ${c}</h2>`+vs.map((t,i)=>{const v=i+1,k=rKey(b,c,v),h=S.hl[k],sl=rsel&&rsel.c==c&&v>=rsel.a&&v<=rsel.z;
+  return`<div id="r${k}" data-v="${v}" class="rv${sl?' sel':''}" style="${h?`background:${h}44;border-left-color:${h}`:''}" onclick="rTap(${v})">${hs?`<div class="he">${hs[i]}</div>`:''}<sup>${v}</sup>${esc(t)}</div>`}).join('');
+ rbar.style.display=rsel?'flex':'none';if(rsel){rref.textContent=`${b} ${c}:${rsel.a}${rsel.z>rsel.a?'-'+rsel.z:''}`;rSend.style.display=rSupported()?'':'none';
+  rmode.textContent=rbook.h?'Theta playback uses gematria letter tones from the Hebrew (WLC).':'No Hebrew loaded for this book: plays the theta layer + word drone with KJV narration (no letter tones).'}
+ rsws.innerHTML=COLORS.map(x=>`<button class="sw" style="background:${x}" onclick="rHl('${x}')"></button>`).join('');rProg();
+ if(rObs)rObs.disconnect();if('IntersectionObserver' in window){rObs=new IntersectionObserver(es=>{let ch=0;es.forEach(e=>{if(e.isIntersecting){const v=+e.target.dataset.v,m=S.rd[b]||(S.rd[b]={});if(!m[c+'.'+v]){m[c+'.'+v]=1;ch=1}}});if(ch){persist();rProg()}},{threshold:.9});
+  rtext.querySelectorAll('.rv').forEach(e=>rObs.observe(e))}}
+function rProg(){const b=S.r.b,tot=MB[b][2].reduce((a,x)=>a+x,0),n=Object.keys(S.rd[b]||{}).length,pc=Math.round(n/tot*100);
+ rprog.innerHTML=`<div class="row dim" style="justify-content:space-between"><span>${b} read</span><span>${pc}% · ${n}/${tot} verses</span></div><div class="bar"><i style="width:${pc}%"></i></div>`}
+function rMarkCh(){const m=S.rd[S.r.b]||(S.rd[S.r.b]={});MB[S.r.b][2][S.r.c-1]&&[...Array(MB[S.r.b][2][S.r.c-1])].forEach((_,i)=>m[S.r.c+'.'+(i+1)]=1);persist();rProg()}
+function rTap(v){const c=S.r.c;if(rsel&&rsel.c==c&&rsel.a==rsel.z&&v!=rsel.a)rsel={c,a:Math.min(v,rsel.a),z:Math.max(v,rsel.a)};else if(rsel&&rsel.a==v&&rsel.z==v)rsel=null;else rsel={c,a:v,z:v};S.r.v=v;persist();rDraw()}
+function rHl(col){if(!rsel)return;for(let v=rsel.a;v<=rsel.z;v++){const k=rKey(S.r.b,rsel.c,v);col?S.hl[k]=col:delete S.hl[k]}if(col){const k=rKey(S.r.b,rsel.c,rsel.z);S.rLastHl=k;if(k in IDX)S.lastHl=k}persist();rDraw();drawRead()}
+function rResume(){let b,c,v;const m=S.rLastHl&&S.hl[S.rLastHl]&&S.rLastHl.match(/^(.*)\.(\d+)\.(\d+)$/);if(m){b=m[1];c=+m[2];v=+m[3]}else{b=S.r.b;c=S.r.c;v=S.r.v||1}rsel={c,a:v,z:v};rOpen(b,c,v)}
+const rSupported=()=>rsel&&(S.r.b=='Genesis'||(S.r.b=='Exodus'&&rsel.c==20&&rsel.z<=17));
+function rSelObj(){const b=S.r.b,c=rsel.c;if(rSupported())return{b,c:String(c),a:rsel.a,z:rsel.z};return{rb:b,c,a:rsel.a,z:rsel.z,e:rbook.c[c-1].slice(rsel.a-1,rsel.z),h:rbook.h?rbook.h[c-1].slice(rsel.a-1,rsel.z):null}}
+function rPlay(){if(rsel)load(rSelObj(),true)}
+function rQueue(){if(rsel){S.queue.push(rSelObj());persist();drawQueue()}}
+function rSendP(){if(!rSupported())return;const s=rSelObj();S.view={b:s.b,c:s.c};pend=s;setTab('read');openCh(s.b,s.c,s.a)}
+function rSearch(){const q=rq.value.trim().toLowerCase();if(q.length<2||!rbook){rres.innerHTML='';return}const out=[];rbook.c.forEach((ch,ci)=>ch.forEach((t,vi)=>{if(out.length<100&&t.toLowerCase().includes(q))out.push([ci+1,vi+1,t])}));
+ rres.innerHTML=`<div class="dim">${out.length}${out.length==100?'+':''} matches in ${rbook.b}</div>`+out.map(([c,v,t])=>`<div class="rv" onclick="rq.value='';rres.innerHTML='';rsel={c:${c},a:${v},z:${v}};rOpen(S.r.b,${c},${v})"><b>${c}:${v}</b> ${esc(t.slice(0,140))}</div>`).join('')}
+let rScT=0;addEventListener('scroll',()=>{if(S.tab!='book'||Date.now()-rScT<800)return;rScT=Date.now();const e=[...rtext.querySelectorAll('.rv')].find(x=>x.getBoundingClientRect().top>90);if(e){S.r.v=+e.dataset.v;persist()}},{passive:true});
 // ---- reader + selection + highlights
 let pend=null;const firstCh=b=>Object.keys(BIBLE[b])[0];
 function openCh(b,c,scrollV){S.view={b,c};persist();drawRead();if(scrollV){const e=$('v'+scrollV);e&&e.scrollIntoView({block:'center'})}else scrollTo(0,0)}
@@ -206,7 +276,7 @@ function drawQueue(){qlist.innerHTML=(cur?`<div class="card"><span class="dim">N
 function mq(i,d){const j=i+d;if(j<0||j>=S.queue.length)return;[S.queue[i],S.queue[j]]=[S.queue[j],S.queue[i]];persist();drawQueue()}
 
 // ---- morning recall
-function selOfKey(k){if(k[0]=='c')return{cid:+k.slice(1)};const[b,c,r]=k.split('.'),[a,z]=r.split('-').map(Number);return{b,c,a,z:z||a}}
+function selOfKey(k){if(k[0]=='r')return null;if(k[0]=='c')return{cid:+k.slice(1)};const[b,c,r]=k.split('.'),[a,z]=r.split('-').map(Number);return{b,c,a,z:z||a}}
 function drawRecall(){const d=dueList().filter(([k])=>track(selOfKey(k)));if(!d.length){recall.innerHTML='<div class="card dim">Nothing due yet. Listen tonight, and check back tomorrow morning.</div>';return}
  const[k]=d[0],t=track(selOfKey(k));recall.innerHTML=`<div class="card">${d.length} due. Write <b>${esc(t.ref)}</b> from memory:<textarea id="rt" rows="4"></textarea><button class="g" onclick="checkRecall('${k}')">Check</button><div id="rr" class="dim"></div></div>`}
 function checkRecall(k){const t=track(selOfKey(k)),typed=$('rt').value.toLowerCase().match(/\w+/g)||[],truth=t.eng.toLowerCase().match(/\w+/g)||[],set=new Set(typed),hit=truth.filter(w=>set.has(w)).length,
@@ -228,9 +298,9 @@ function drawMine(){mlist.innerHTML=S.custom.length?S.custom.map(p=>{const s=S.s
  ${p.orig?`<div class="he">${esc(p.orig)}</div>`:''}<div class="dim">${esc(p.eng)}</div><div class="row"><button onclick="load({cid:${p.id}},true)">▶</button><button onclick="S.queue.push({cid:${p.id}});persist();drawQueue()">＋ Up Next</button><button onclick="editP(${p.id})">Edit</button></div></div>`}).join(''):'<div class="dim">Your own passages appear here.</div>'}
 
 // ---- tabs + init
-const TABS=[["read","Read"],["find","Search"],["queue","Up Next"],["recall","Recall"],["sleep","Sleep"],["mine","My passages"]];
+const TABS=[["read","Listen"],["book","Read"],["find","Search"],["queue","Up Next"],["recall","Recall"],["sleep","Sleep"],["mine","My passages"]];
 function setTab(t){S.tab=t;persist();tabs.innerHTML=TABS.map(([k,n])=>`<button class="${k==t?'on':''}" onclick="setTab('${k}')">${n}</button>`).join('');TABS.forEach(([k])=>$('s-'+k).classList.toggle('on',k==t));
- if(t=='find')drawFind();if(t=='queue')drawQueue();if(t=='recall')drawRecall();if(t=='mine')drawMine()}
+ if(t=='find')drawFind();if(t=='queue')drawQueue();if(t=='recall')drawRecall();if(t=='mine')drawMine();if(t=='book')rOpen(S.r.b,S.r.c,S.r.v)}
 spd.value=S.speed;vol.value=S.vol;band.value=S.band;theta.checked=S.theta;mins.value=S.mins;shB.classList.toggle('on',S.shuffle);np.textContent=track(S.sel)?track(S.sel).ref+' · tap ▶':'—';
 if(!track(S.sel))S.sel={b:"Exodus",c:"20",a:1,z:17};narr.checked=!!S.narr;setTab(S.tab||'read');drawRead();drawVotd();
 </script></body></html>
