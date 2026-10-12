@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f0e14"><title>Logos Theta</title><style>
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#0f0e14"><title>Logos Theta</title><style>
 *{box-sizing:border-box}body{margin:0;background:#0f0e14;color:#ece9f2;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:190px}
 header{position:sticky;top:0;z-index:5;background:#0f0e14ee;backdrop-filter:blur(6px);border-bottom:1px solid #24222e;padding:10px 14px 0}
 .top{display:flex;align-items:center;gap:8px}.top h1{font:600 19px Georgia,serif;color:#d9b65a;margin:0;flex:1}
@@ -38,6 +38,13 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
  <label class="dim" id="rheL"><input type="checkbox" id="rhe" onchange="S.r.he=this.checked;persist();rDraw()"> Hebrew (Torah)</label><button onclick="rMarkCh()">✓ Mark chapter read</button></div>
  <div id="rprog" class="prog"></div><input type="search" id="rq" placeholder="Search this book…" oninput="rSearch()"><div id="rres"></div><div id="rtext"></div>
  <div id="rbar"><b id="rref"></b><button class="g" onclick="rPlay()">▶ Play with theta</button><button id="rSend" onclick="rSendP()">→ Send to player</button><button onclick="rQueue()">＋ Up Next</button><span id="rsws"></span><button onclick="rHl(null)">✕</button><button onclick="rsel=null;rDraw()">Done</button><div id="rmode" class="dim" style="width:100%"></div></div></section>
+<section id="s-prof"><div class="card"><div class="dim">No server, no accounts, no live sync. Nothing leaves this device unless you send a link yourself. Friends see updates only when you send them a new link.</div>
+ <div class="row"><input type="text" id="pfE" placeholder="🙂" maxlength="4" style="width:64px"><input type="text" id="pfN" placeholder="Display name" maxlength="40" style="flex:1"></div>
+ <label><input type="checkbox" id="pfAll"> Share all highlights</label><br><label><input type="checkbox" id="pfProg"> Share per-book progress</label>
+ <div class="dim" style="margin-top:6px">Or choose individual highlights to share (sharing is off by default):</div><div id="pfH"></div>
+ <button class="g" onclick="shareProfile()">🔗 Share my profile</button><div id="pfS" class="dim"></div></div>
+ <h3>Following</h3><div class="dim">Snapshots saved on this device from links people sent you.</div><div id="pfF"></div></section>
+<section id="s-pub"><div id="pub"></div></section>
 <section id="s-find"><div class="dim">Smart sort · local (plain JS on this device, no AI, no network)</div>
  <input type="search" id="q" placeholder="Search reference, English or Hebrew…" oninput="drawFind()">
  <div id="chips"></div><div class="row" style="margin-top:8px"><button class="g" onclick="suggest()">✨ Suggest</button><span class="dim">ranks by theme overlap with the current track + SM-2 due dates</span></div><div id="results"></div></section>
@@ -297,10 +304,46 @@ function editP(id){const p=S.custom.find(x=>x.id==id);editId=id;ref.value=p.ref;
 function drawMine(){mlist.innerHTML=S.custom.length?S.custom.map(p=>{const s=S.srs['c'+p.id];return`<div class="card"><b>${esc(p.ref)}</b> <span class="dim">${s&&s.due?'due '+new Date(s.due).toLocaleDateString():'new'}</span>
  ${p.orig?`<div class="he">${esc(p.orig)}</div>`:''}<div class="dim">${esc(p.eng)}</div><div class="row"><button onclick="load({cid:${p.id}},true)">▶</button><button onclick="S.queue.push({cid:${p.id}});persist();drawQueue()">＋ Up Next</button><button onclick="editP(${p.id})">Edit</button></div></div>`}).join(''):'<div class="dim">Your own passages appear here.</div>'}
 
+// ---- social (no backend): snapshot in URL hash
+if(!S.prof)S.prof={id:(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+now().toString(36)).replace(/-/g,'').slice(0,16),name:'',emoji:'',shareAll:false,shareProg:false,shared:{}};if(!S.follow)S.follow={};
+const parseK=k=>{const m=String(k).match(/^(.*)\.(\d+)\.(\d+)$/);return m&&{b:m[1],c:+m[2],v:+m[3]}};
+const kRef=k=>String(k).replace(/\.(\d+)\.(\d+)$/,' $1:$2');
+function progSnap(){const p={};META.forEach(([b,,cs])=>{const n=Object.keys(S.rd[b]||{}).length;if(n)p[b]=Math.round(n/cs.reduce((a,x)=>a+x,0)*100)});
+ const l={};BOOKS.forEach(b=>{const ks=ALL.filter(x=>x.b==b),n=ks.filter(x=>S.played[x.k]).length;if(n)l[label(b)]=Math.round(n/ks.length*100)});return{p,l}}
+function snapshot(){const P=S.prof,h=Object.entries(S.hl).filter(([k])=>P.shareAll||P.shared[k]).map(([k,c])=>[k,c]);const o={v:1,id:P.id,n:P.name||'Anonymous',e:P.emoji||'',t:now(),h};if(P.shareProg)Object.assign(o,progSnap());return o}
+const b64u=u8=>{let s='';for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const ub64=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const b=atob(s);return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function enc(o){const raw=new TextEncoder().encode(JSON.stringify(o));try{if(!window.CompressionStream)throw 0;const z=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());return'z'+b64u(z)}catch(e){return'j'+b64u(raw)}}
+async function dec(s){const d=ub64(s.slice(1));const raw=s[0]=='z'?new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()):d;return JSON.parse(new TextDecoder().decode(raw))}
+async function shareProfile(){const o=snapshot(),url=location.href.split('#')[0]+'#p='+await enc(o),msg=`${o.e} ${o.n} on Logos Theta`;pfS.textContent=`Link has ${o.h.length} highlight(s)${S.prof.shareProg?' + progress':''}, ${url.length} chars.`;
+ try{if(navigator.share){await navigator.share({title:'Logos Theta profile',text:msg,url});return}}catch(e){if(e.name=='AbortError')return}
+ try{await navigator.clipboard.writeText(url);pfS.textContent+=' Copied to clipboard.'}catch(e){pfS.innerHTML+=`<br><textarea rows="3" onclick="this.select()">${esc(url)}</textarea>`}}
+function shareTog(i,on){const k=Object.keys(S.hl)[i];if(on)S.prof.shared[k]=1;else delete S.prof.shared[k];persist()}
+function drawProf(){const P=S.prof;pfN.value=P.name;pfE.value=P.emoji;pfAll.checked=P.shareAll;pfProg.checked=P.shareProg;const ks=Object.keys(S.hl);
+ pfH.innerHTML=ks.length?ks.map((k,i)=>`<label class="q"><input type="checkbox" ${P.shareAll||P.shared[k]?'checked':''} ${P.shareAll?'disabled':''} onchange="shareTog(${i},this.checked)"><span style="border-left:4px solid ${S.hl[k]};padding-left:6px">${esc(kRef(k))}</span></label>`).join(''):'<div class="dim">No highlights yet.</div>';
+ const F=Object.values(S.follow).sort((a,b)=>b.t-a.t);pfF.innerHTML=F.length?F.map((f,i)=>`<div class="card"><b>${esc(f.e)} ${esc(f.n)}</b> <span class="dim">· last updated ${new Date(f.t).toLocaleDateString()} · ${f.h.length} highlights</span>${progHTML(f)}
+ <div class="row"><button onclick="showPub(FL[${i}])">View</button><button onclick="unfollow(FL[${i}].id)">Unfollow</button></div></div>`).join(''):'<div class="dim">Not following anyone yet. Open a profile link and tap Follow.</div>';FL=F}
+let FL=[];function unfollow(id){if(confirm('Unfollow?')){delete S.follow[id];persist();drawProf()}}
+pfN.oninput=()=>{S.prof.name=pfN.value;persist()};pfE.oninput=()=>{S.prof.emoji=pfE.value;persist()};pfAll.onchange=()=>{S.prof.shareAll=pfAll.checked;persist();drawProf()};pfProg.onchange=()=>{S.prof.shareProg=pfProg.checked;persist()};
+function progHTML(o){const rows=Object.entries(o.p||{}).map(([b,v])=>[b+' read',v]).concat(Object.entries(o.l||{}).map(([b,v])=>[b+' listened',v]));
+ return rows.map(([b,v])=>`<div class="prog"><div class="row dim" style="justify-content:space-between"><span>${esc(b)}</span><span>${+v||0}%</span></div><div class="bar"><i style="width:${Math.min(100,+v||0)}%"></i></div></div>`).join('')}
+async function verseText(k){const x=parseK(k);if(!x||!MB[x.b])return'';if(k in IDX)return ALL[IDX[k]].e;try{const bk=await getBook(x.b);return bk.c[x.c-1][x.v-1]||''}catch(e){return'(text not loaded offline)'}}
+async function pubPlay(i){const k=PUB.h[i][0],x=parseK(k);if(k in IDX){const y=ALL[IDX[k]];return load({b:y.b,c:y.c,a:y.v,z:y.v},true)}const bk=await getBook(x.b);load({rb:x.b,c:x.c,a:x.v,z:x.v,e:[bk.c[x.c-1][x.v-1]],h:bk.h?[bk.h[x.c-1][x.v-1]]:null},true)}
+function pubRead(i){const x=parseK(PUB.h[i][0]);setTab('book');rsel={c:x.c,a:x.v,z:x.v};rOpen(x.b,x.c,x.v)}
+function pubFollow(on){if(on)S.follow[PUB.id]=PUB;else delete S.follow[PUB.id];persist();showPub(PUB,on?'Following.':'')}
+let PUB=null;async function showPub(o,note){if(!o||!o.id||!Array.isArray(o.h))return;PUB=o;const f=S.follow[o.id],mine=o.id==S.prof.id;setTab('pub');
+ pub.innerHTML=`<div class="card"><div class="dim">Read-only profile snapshot from ${new Date(o.t).toLocaleString()}. No live sync: updates arrive only when they send you a new link.${note?' <b>'+esc(note)+'</b>':''}</div>
+ <h2 style="margin:6px 0">${esc(o.e)} ${esc(o.n)}</h2>${mine?'<div class="dim">This is your own profile link.</div>':f?'<button onclick="pubFollow(false)">Unfollow</button>':'<button class="g" onclick="pubFollow(true)">＋ Follow</button>'}
+ <button onclick="history.replaceState(null,'',location.pathname);setTab('prof')">Close</button>${progHTML(o)||'<div class="dim">No progress shared.</div>'}</div><div id="pubH"><div class="dim">${o.h.length} shared highlights</div></div>`;
+ for(let i=0;i<Math.min(o.h.length,300);i++){const[k,c]=o.h[i];if(!parseK(k)||!MB[parseK(k).b])continue;const t=await verseText(k);if(PUB!==o)return;
+  pubH.insertAdjacentHTML('beforeend',`<div class="card" style="border-left:4px solid ${/^#[0-9a-f]{3,8}$/i.test(c)?c:'#888'}"><b>${esc(kRef(k))}</b><div>${esc(t)}</div><div class="row"><button onclick="pubRead(${i})">Read</button><button onclick="pubPlay(${i})">▶ Play</button></div></div>`)}}
+async function openHash(){const m=location.hash.match(/^#p=(.+)$/);if(!m)return;let o;try{o=await dec(m[1])}catch(e){alert('This profile link could not be read.');return}
+ let note='';const f=S.follow[o.id];if(f&&o.id!=S.prof.id){if(o.t>f.t){S.follow[o.id]=o;persist();note='Updated your saved copy.'}else if(o.t<f.t)note='You already have a newer snapshot from this person.'}showPub(o,note)}
+addEventListener('hashchange',openHash);
 // ---- tabs + init
-const TABS=[["read","Listen"],["book","Read"],["find","Search"],["queue","Up Next"],["recall","Recall"],["sleep","Sleep"],["mine","My passages"]];
-function setTab(t){S.tab=t;persist();tabs.innerHTML=TABS.map(([k,n])=>`<button class="${k==t?'on':''}" onclick="setTab('${k}')">${n}</button>`).join('');TABS.forEach(([k])=>$('s-'+k).classList.toggle('on',k==t));
- if(t=='find')drawFind();if(t=='queue')drawQueue();if(t=='recall')drawRecall();if(t=='mine')drawMine();if(t=='book')rOpen(S.r.b,S.r.c,S.r.v)}
+const TABS=[["read","Listen"],["book","Read"],["find","Search"],["queue","Up Next"],["recall","Recall"],["sleep","Sleep"],["mine","My passages"],["prof","Profile"]];
+function setTab(t){S.tab=t;persist();tabs.innerHTML=TABS.map(([k,n])=>`<button class="${k==t?'on':''}" onclick="setTab('${k}')">${n}</button>`).join('');TABS.concat([['pub']]).forEach(([k])=>$('s-'+k).classList.toggle('on',k==t));
+ if(t=='find')drawFind();if(t=='queue')drawQueue();if(t=='recall')drawRecall();if(t=='mine')drawMine();if(t=='book')rOpen(S.r.b,S.r.c,S.r.v);if(t=='prof')drawProf()}
 spd.value=S.speed;vol.value=S.vol;band.value=S.band;theta.checked=S.theta;mins.value=S.mins;shB.classList.toggle('on',S.shuffle);np.textContent=track(S.sel)?track(S.sel).ref+' · tap ▶':'—';
-if(!track(S.sel))S.sel={b:"Exodus",c:"20",a:1,z:17};narr.checked=!!S.narr;setTab(S.tab||'read');drawRead();drawVotd();
+if(!track(S.sel))S.sel={b:"Exodus",c:"20",a:1,z:17};narr.checked=!!S.narr;setTab(S.tab=='pub'?'read':S.tab||'read');drawRead();drawVotd();openHash();
 </script></body></html>
