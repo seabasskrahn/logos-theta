@@ -731,6 +731,7 @@ dialTicks();dialDraw(+S.speed||1);
 let bgQ=null;function ltBgSync(){if(bgQ&&!slpEnd&&!night&&prOn&&!prayM){prayStop();bgQ=null}const on=isOn()||prOn;if(window.LT_BG)(on?LT_BG.start({title:'Logos Theta',text:(fpRef.textContent||'Playing')}):LT_BG.stop()).catch(()=>{})}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if((night||slpEnd)&&isOn()&&!prayM){bgQ={o:pos()};try{SS&&SS.cancel()}catch(e){}if(nmA)nPause();else pause();spkStop();prayStart()}}
  else if(bgQ){const b=bgQ;bgQ=null;prayStop();if(slpEnd||night)startAt(b.o)}});
+if(window.LT_BG)LT_BG.addListener('action',e=>{const a=e&&e.action;if(a=='toggle')toggle();else if(a=='next')stepVerse(1);else if(a=='prev')stepVerse(-1);setTimeout(ltBgSync,300)});
 setInterval(ltBgSync,3000);
 </script>
 </body></html>
