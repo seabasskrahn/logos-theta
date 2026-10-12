@@ -1,0 +1,93 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logos Theta</title><style>
+body{background:#07060d;color:#eee;font-family:system-ui;margin:0;padding:16px;max-width:640px;margin:auto}
+h1{color:#d9b65a;margin:4px 0}h2{color:#d9b65a;font-size:17px;margin-top:22px}
+button{background:#d9b65a;color:#111;border:0;border-radius:8px;padding:10px 14px;margin:4px 4px 4px 0;font-size:15px}
+button.s{background:#2a2838;color:#eee}textarea,input,select{width:100%;box-sizing:border-box;background:#15131f;color:#eee;border:1px solid #333;border-radius:6px;padding:8px;margin:4px 0}
+.card{background:#110f1a;border:1px solid #2a2838;border-radius:10px;padding:12px;margin:8px 0}.dim{color:#999;font-size:13px}
+.heb{direction:rtl;font-size:20px}</style></head><body>
+<h1>Logos Theta</h1><div class="dim">Scripture turned into wordless theta audio, with spaced repetition, morning recall and sleep cues.</div>
+
+<h2>1 · Today</h2><div id="today" class="card"></div>
+
+<h2>2 · Pray &amp; listen</h2><div class="card">
+<select id="band"><option value="6">Theta 6 Hz (default)</option><option value="4.5">Deep theta 4.5 Hz</option><option value="7.5">Light theta 7.5 Hz</option><option value="10">Alpha 10 Hz</option></select>
+<select id="mins"><option>5</option><option selected>10</option><option>20</option><option>30</option></select> minutes
+<button onclick="play()">▶ Play behind prayer</button><button class="s" onclick="stop()">■ Stop</button><button class="s" onclick="saveWav()">Save as WAV</button>
+<div id="status" class="dim">Use headphones for the binaural layer. Volume is capped at half.</div></div>
+
+<h2>3 · Morning recall</h2><div class="card" id="recall"></div>
+
+<h2>4 · Sleep cues</h2><div class="card">
+<div class="dim">Leave this page open with the phone face-down by the bed. After you fall asleep, it plays your passage's soft cue tone (no words) when deep sleep is most likely, in the first two 90-minute cycles.</div>
+<button onclick="sleepStart()">🌙 Start sleep cues</button><button class="s" onclick="sleepStop()">Stop</button>
+<div id="sleepS" class="dim"></div></div>
+
+<h2>5 · Passages</h2><div class="card">
+<input id="ref" placeholder="Reference, e.g. Psalm 23:1"><textarea id="orig" class="heb" placeholder="Original text (Hebrew or Greek), optional"></textarea>
+<textarea id="eng" placeholder="English text (used for recall checks)"></textarea><button onclick="addP()">Add passage</button>
+<div id="list"></div></div>
+
+<script>
+const HEB="אבגדהוזחטיכלמנסעפצקרשתךםןףץ",HV=[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,20,40,50,80,90];
+const GRK="αβγδεϛζηθικλμνξοπϙρστυφχψω",GV=[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800];
+function val(c){let i=HEB.indexOf(c);if(i>=0)return HV[i];i=GRK.indexOf(c.toLowerCase());if(i>=0)return GV[i];
+ i="abcdefghijklmnopqrstuvwxyz".indexOf(c.toLowerCase());return i>=0?i+1:0}
+const tone=v=>110*Math.pow(2,2*Math.log(v)/Math.log(800));
+const DAY=864e5,now=()=>Date.now();
+let S=JSON.parse(localStorage.lt||'null')||{passages:[{id:1,ref:"Genesis 1:1-3",orig:"בראשית ברא אלהים את השמים ואת הארץ\nוהארץ היתה תהו ובהו וחשך על פני תהום ורוח אלהים מרחפת על פני המים\nויאמר אלהים יהי אור ויהי אור",
+ eng:"In the beginning God created the heaven and the earth. And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters. And God said, Let there be light: and there was light.",
+ interval:0,ease:2.5,due:0,reps:0,history:[]}],log:[]};
+const save=()=>{localStorage.lt=JSON.stringify(S);render()};
+const due=()=>S.passages.filter(p=>p.due<=now()).sort((a,b)=>a.due-b.due);
+const current=()=>due()[0]||S.passages.slice().sort((a,b)=>a.due-b.due)[0];
+
+// spaced repetition (SM-2 style): grade 0-5
+function grade(p,q){if(q<3){p.reps=0;p.interval=1}else{p.reps++;p.interval=p.reps==1?1:p.reps==2?3:Math.round(p.interval*p.ease)}
+ p.ease=Math.max(1.3,p.ease+0.1-(5-q)*(0.08+(5-q)*0.02));p.due=now()+p.interval*DAY;p.history.push({t:now(),q});save()}
+
+// audio synthesis (same mapping as logos_theta.py)
+function build(ctx,text,beat,secs){const sr=ctx.sampleRate,n=Math.floor(sr*secs),L=new Float32Array(n),R=new Float32Array(n);
+ const ev=[];for(const line of text.split("\n")){for(const w of line.split(/\s+/)){const vs=[...w].map(val).filter(x=>x);if(!vs.length)continue;
+  const drone=55*Math.pow(2,(vs.reduce((a,b)=>a+b,0)%400)/400);for(const v of vs)ev.push([tone(v),drone,.35]);ev.push([0,0,.15])}ev.push([0,0,.8])}
+ let i=0,k=0;while(i<n){const [f,d,dur]=ev[k%ev.length];k++;const m=Math.floor(sr*dur);
+  for(let j=0;j<m&&i<n;j++,i++){if(!f)continue;const t=j/sr,e=Math.pow(Math.sin(Math.PI*t/dur),2),b=.5*Math.sin(2*Math.PI*f*t)+.25*Math.sin(2*Math.PI*d*t);
+   L[i]=e*(b+.25*Math.sin(2*Math.PI*200*i/sr));R[i]=e*(b+.25*Math.sin(2*Math.PI*(200+beat)*i/sr))}}
+ let pk=0,p=0;for(i=0;i<n;i++){const t=i/sr,iso=.6+.4*(Math.sin(2*Math.PI*beat*t)>0?1:0);p=p*.98+(Math.random()*2-1)*.02;
+  const fade=Math.min(1,t/3,(secs-t)/3);L[i]=(L[i]*iso+.4*p)*fade;R[i]=(R[i]*iso+.4*p)*fade;pk=Math.max(pk,Math.abs(L[i]),Math.abs(R[i]))}
+ const g=.5/(pk||1);for(i=0;i<n;i++){L[i]*=g;R[i]*=g}const buf=ctx.createBuffer(2,n,sr);buf.copyToChannel(L,0);buf.copyToChannel(R,1);return buf}
+let ctx,src;
+function play(){stop();const p=current();ctx=new AudioContext();const secs=+mins.value*60;status.textContent="Building audio…";
+ setTimeout(()=>{const buf=build(ctx,p.orig||p.eng,+band.value,secs);src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start();
+ status.textContent=`Playing ${p.ref} · ${band.value} Hz · ${mins.value} min. Pray freely.`;S.log.push({t:now(),ref:p.ref,mins:+mins.value,band:+band.value});
+ if(!p.reps&&!p.history.length){p.due=now()+DAY}save();src.onended=()=>status.textContent="Session complete. Recall check tomorrow morning."},50)}
+function stop(){try{src&&src.stop()}catch(e){}}
+function saveWav(){const p=current(),secs=+mins.value*60,c=new OfflineAudioContext(2,44100,44100),b=build(c,p.orig||p.eng,+band.value,secs);
+ const n=b.length,dv=new DataView(new ArrayBuffer(44+n*4)),w=(o,s)=>[...s].forEach((ch,i)=>dv.setUint8(o+i,ch.charCodeAt(0)));
+ w(0,"RIFF");dv.setUint32(4,36+n*4,true);w(8,"WAVEfmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,2,true);dv.setUint32(24,44100,true);
+ dv.setUint32(28,176400,true);dv.setUint16(32,4,true);dv.setUint16(34,16,true);w(36,"data");dv.setUint32(40,n*4,true);
+ const a=b.getChannelData(0),r=b.getChannelData(1);for(let i=0;i<n;i++){dv.setInt16(44+i*4,a[i]*32767,true);dv.setInt16(46+i*4,r[i]*32767,true)}
+ const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([dv],{type:'audio/wav'}));l.download=p.ref.replace(/\W+/g,'_')+'_theta.wav';l.click()}
+
+// morning recall: type from memory, auto-score word overlap, then grade
+function checkRecall(id){const p=S.passages.find(x=>x.id==id),typed=document.getElementById('rt').value.toLowerCase().match(/\w+/g)||[],
+ truth=p.eng.toLowerCase().match(/\w+/g)||[],set=new Set(typed),hit=truth.filter(w=>set.has(w)).length,pct=Math.round(hit/truth.length*100),
+ q=pct>=95?5:pct>=80?4:pct>=60?3:pct>=40?2:pct>=20?1:0;
+ document.getElementById('rr').innerHTML=`${pct}% of words recalled.<br><i>${p.eng}</i>`;grade(p,q)}
+
+// sleep cues: timer-based estimate of deep sleep (first two cycles)
+let timers=[];function sleepStart(){sleepStop();const p=current(),cue=tone(([...((p.orig||p.eng))].map(val).find(x=>x))||1);
+ const at=[25,40,115,130].map(m=>m*60e3);sleepS.textContent=`Cues set for ${p.ref} at 25, 40, 115 and 130 min. Keep the screen on and the volume low.`;
+ try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}
+ timers=at.map(ms=>setTimeout(()=>{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.frequency.value=cue;g.gain.setValueAtTime(0,c.currentTime);
+  g.gain.linearRampToValueAtTime(.05,c.currentTime+2);g.gain.linearRampToValueAtTime(0,c.currentTime+6);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+6)},ms))}
+function sleepStop(){timers.forEach(clearTimeout);timers=[];sleepS.textContent=""}
+
+function addP(){if(!eng.value&&!orig.value)return;S.passages.push({id:now(),ref:ref.value||"Untitled",orig:orig.value,eng:eng.value,interval:0,ease:2.5,due:0,reps:0,history:[]});ref.value=orig.value=eng.value="";save()}
+function render(){const p=current(),d=due();
+ today.innerHTML=`<b>${p.ref}</b><div class="heb">${(p.orig||"").replace(/\n/g,"<br>")}</div><div class="dim">${d.length} due · next review ${new Date(p.due||now()).toLocaleDateString()} · sessions logged: ${S.log.length}</div>`;
+ const r=S.passages.find(x=>x.history.length||S.log.some(l=>l.ref==x.ref))&&d[0];
+ recall.innerHTML=r?`Write <b>${r.ref}</b> from memory:<textarea id="rt"></textarea><button onclick="checkRecall(${r.id})">Check</button><div id="rr" class="dim"></div>`:'<span class="dim">Nothing due yet. Listen tonight, and check back tomorrow morning.</span>';
+ list.innerHTML=S.passages.map(x=>`<div class="dim">• ${x.ref}: due ${new Date(x.due||now()).toLocaleDateString()}, every ${x.interval||0} d</div>`).join('')}
+render();
+</script></body></html>
