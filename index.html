@@ -79,8 +79,8 @@ button{touch-action:manipulation}select,input,textarea{font:inherit;background:#
  <div class="ctl"><button id="shB" onclick="toggleShuffle()" title="Shuffle">🔀</button><button onclick="stepChapter(-1)" title="Previous chapter">⏪</button><button onclick="prev()" title="Previous verse">⏮</button><button id="pp" onclick="toggle()">▶</button><button onclick="next(true)" title="Next verse">⏭</button><button onclick="stepChapter(1)" title="Next chapter">⏩</button><button id="autoB" onclick="setAuto(!S.auto)" title="Auto play" style="font-size:13px;border:1px solid #444;border-radius:12px">Auto</button>
  <select id="spd" title="Reading speed"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>1.75</option><option>2</option><option>2.5</option><option>3</option></select>
  <button onclick="more.style.display=more.style.display=='block'?'none':'block'" title="Sound settings">⚙</button></div>
- <div id="more"><div class="row" style="justify-content:space-between"><b>Settings</b><button onclick="more.style.display='none'">✕ Close</button></div><div class="row"><label class="dim">Volume <input type="range" id="vol" min="0" max="1" step="0.01"></label><label class="dim">Theta centre <select id="band"><option value="5">Lower · beats 4, 4, 5.5, 6.5 Hz</option><option value="6">Middle · beats 4.5, 5.5, 6.5, 7.5 Hz (default)</option><option value="7">Upper · beats 5.5, 6.5, 7.5, 8 Hz</option></select></label>
- <label><input type="checkbox" id="theta"> Theta beats (4 binaural pairs inside 4-8 Hz, headphones)</label><label class="dim">Evolving tone <input type="range" id="evo" min="0" max="1" step="0.05"></label>
+ <div id="more"><div class="row" style="justify-content:space-between"><b>Settings</b><button onclick="more.style.display='none'">✕ Close</button></div><div class="row"><label class="dim">Volume <input type="range" id="vol" min="0" max="1" step="0.01"></label><label class="dim">Theta centre <select id="band"><option value="5">Deep rest, slow theta for winding down (beats 4-6.5 Hz)</option><option value="6">Prayer focus, mid theta (beats 4.5-7.5 Hz, default)</option><option value="7">Calm alert, edge of theta (beats 5.5-8 Hz)</option></select></label>
+ <label><input type="checkbox" id="theta"> Theta beats, a slow pulse felt in headphones <small class="dim">(4 binaural pairs, 4-8 Hz)</small></label><label class="dim">Evolving tone <input type="range" id="evo" min="0" max="1" step="0.05"></label>
  <select id="mins"><option value="0">WAV: one reading</option><option value="5">WAV 5 min loop</option><option value="10">WAV 10 min loop</option><option value="20">WAV 20 min loop</option></select>
  <button onclick="saveWav()">⬇ Save WAV</button>
  <select id="slp" onchange="setSleep(+this.value)"><option value="0">Sleep timer: off</option><option>15</option><option>30</option><option>45</option><option>60</option><option>90</option></select><span id="slpS" class="dim"></span>
@@ -151,15 +151,20 @@ function nStart(i){ensureCtx();const t=rendered.t,n=t.engParts.length;if(i>=n){n
  const k=t.keys[i];if(k in IDX&&!S.played[k]){S.played[k]=1;persist();drawProg()}
  document.querySelectorAll('.spk').forEach(e=>e.classList.remove('spk'));const x=ALL[IDX[k]];if(x&&S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}const re=k&&$('r'+k);re&&re.classList.add('spk');
  const txt=t.engParts[i]||'';if(night)nv.textContent=txt;const go=()=>{if(tok==nTok&&playing)nStart(i+1)};
- const u=new SpeechSynthesisUtterance(txt);u.rate=Math.min(3,Math.max(.5,+S.speed));u.lang='en-GB';const vv=voices[+voice.value];if(vv)u.voice=vv;u.onend=go;
- // safety net if a browser drops onend: generous estimate
- nTimer=setTimeout(go,(txt.split(/\s+/).length*0.6/u.rate+4)*1000);SS.speak(u);upd();if(i+1<n)setTimeout(()=>{if(tok==nTok)nSeg(i+1)},50)}
+ // safety net if a browser drops onend, or stops speaking while the screen is locked: advance on a word-count estimate
+ const rt=Math.min(3,Math.max(.5,+S.speed));const est=()=>{if(!document.hidden&&SS.speaking){nTimer=setTimeout(est,1000);return}go()};nTimer=setTimeout(est,(txt.split(/\s+/).length*0.45/rt+2)*1000);speakChunks(txt,go);upd();if(i+1<n)setTimeout(()=>{if(tok==nTok)nSeg(i+1)},50)}
 function nPause(){offset=rendered.marks[nIdx]||0;nStop();playing=false;pp.textContent="▶";upd()}
 const verseAt=o=>{const m=rendered.marks,p=o%(rendered.pass||1e9);let i=0;while(i+1<m.length&&m[i+1]<=p)i++;return i};
 // ---- player: AudioBuffer with real seek / pause / resume
 let ctx,gain,src,cur=null,rendered=null,offset=0,startedAt=0,playing=false,dragging=false;
 const fmt=s=>{s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
-function ensureCtx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();gain.connect(ctx.destination)}gain.gain.value=+S.vol;if(ctx.state=="suspended")ctx.resume()}
+// Web Audio is routed through a MediaStream into an <audio> element so Android Chrome treats it as media playback and keeps it going when the screen locks
+let bgA=null;
+function ensureCtx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();
+  try{const d=ctx.createMediaStreamDestination();bgA=new Audio();bgA.srcObject=d.stream;gain.connect(d)}catch(e){bgA=null;gain.connect(ctx.destination)}}
+ gain.gain.value=+S.vol;if(ctx.state!="running")ctx.resume().catch(()=>{});
+ if(bgA&&bgA.paused)bgA.play().catch(()=>{if(bgA){bgA=null;gain.disconnect();gain.connect(ctx.destination)}})}
+document.addEventListener('pointerdown',()=>{if(ctx)ensureCtx()},true);
 const pos=()=>nmA?(rendered.marks[nIdx]||0):playing?Math.min(rendered.buf.duration,offset+ctx.currentTime-startedAt):offset;
 function render(keepFrac){const t=track(cur);if(!t)return;st.textContent="Rendering…";const f=keepFrac&&rendered?pos()/rendered.buf.duration:0;
  rendered=build(t.parts,+S.band,+S.speed,false,cur.rb?0:+S.mins,t.droneOnly);rendered.t=t;offset=f*rendered.buf.duration;tot.textContent=fmt(rendered.buf.duration);
@@ -203,10 +208,12 @@ async function saveWav(){const rg=S.lastRange||{b:S.pos.b,c:S.pos.c,a:S.pos.v,z:
 const SS=window.speechSynthesis;let spkIdx=-1,voices=[];
 function loadVoices(){if(!SS)return;voices=SS.getVoices().filter(v=>/^en/i.test(v.lang));voice.innerHTML=voices.map((v,i)=>`<option value="${i}"${v.name==S.voice?' selected':''}>${v.name} (${v.lang})</option>`).join('')||'<option>default voice</option>'}
 if(SS){loadVoices();SS.addEventListener?SS.addEventListener('voiceschanged',loadVoices):SS.onvoiceschanged=loadVoices}
+// Chrome (esp. Android) cuts utterances off after ~15 s: speak long verses as short phrase chunks
+function sayParts(t){return(t.match(/[^.;:,!?]+[.;:,!?'"’”)]*\s*/g)||[t]).reduce((a,x)=>{if(a.length&&(a[a.length-1]+x).length<160)a[a.length-1]+=x;else a.push(x);return a},[]).flatMap(x=>x.length>200?x.match(/.{1,180}(\s|$)/g):[x])}
+function speakChunks(t,onDone){const ps=sayParts(t||' ');ps.forEach((p,j)=>{const u=new SpeechSynthesisUtterance(p);u.rate=Math.min(3,Math.max(.5,+S.speed));u.lang='en-GB';const vv=voices[+voice.value];if(vv)u.voice=vv;if(j==ps.length-1&&onDone)u.onend=onDone;SS.speak(u)})}
 function spkStop(){if(SS)SS.cancel();spkIdx=-1;document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'))}
 function narrTick(){if(nmA)return;if(!SS||!rendered||!(S.narr||rendered.t.narrate)||!rendered.t.engParts)return;const p=pos()%(rendered.pass||1e9),m=rendered.marks;let i=0;while(i+1<m.length&&m[i+1]<=p)i++;
- if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]]||{},txt=rendered.t.engParts[i]||'',u=new SpeechSynthesisUtterance(txt);u.rate=Math.min(3,Math.max(.5,+S.speed));u.lang='en-GB';
- const vv=voices[+voice.value];if(vv)u.voice=vv;SS.speak(u);document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'));
+ if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]]||{},txt=rendered.t.engParts[i]||'';speakChunks(txt);document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'));
  if(x.b&&S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}const re=k&&$('r'+k);re&&re.classList.add('spk');if(night)nv.textContent=txt}
 narr.onchange=()=>{const was=playing,o=pos();if(was){nmA?nPause():pause()}S.narr=narr.checked;persist();if(!S.narr)spkStop();if(was)startAt(o);else upd()};voice.onchange=()=>{S.voice=(voices[+voice.value]||{}).name;persist();spkIdx=-1};
 // ---- night mode
@@ -343,7 +350,7 @@ function checkRecall(k){const t=track(selOfKey(k)),typed=$('rt').value.toLowerCa
 let timers=[];function sleepStart(){sleepStop();const t=track(cur||S.sel),cue=tone(([...t.parts.join('')].map(val).find(x=>x))||1);
  sleepS.textContent=`Cues set for ${t.ref} at 25, 40, 115 and 130 min. Keep the screen on and the volume low.`;ensureCtx();wakeOn();
  timers=[25,40,115,130].map(m=>setTimeout(()=>{const c=ctx;if(c.state=='suspended')c.resume();const o=c.createOscillator(),g=c.createGain();o.frequency.value=cue;g.gain.setValueAtTime(0,c.currentTime);
-  g.gain.linearRampToValueAtTime(.05,c.currentTime+2);g.gain.linearRampToValueAtTime(0,c.currentTime+6);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+6)},m*60e3))}
+  g.gain.linearRampToValueAtTime(.05,c.currentTime+2);g.gain.linearRampToValueAtTime(0,c.currentTime+6);o.connect(g).connect(gain);o.start();o.stop(c.currentTime+6)},m*60e3))}
 function sleepStop(){timers.forEach(clearTimeout);timers=[];sleepS.textContent=""}
 
 // ---- my passages (add / edit)
@@ -395,8 +402,8 @@ function notice(msg){let n=$('ltNotice');if(!n){document.body.insertAdjacentHTML
 async function wakeOn(){if(!('wakeLock' in navigator)){if(!wakeOn.told){wakeOn.told=1;notice('Screen wake lock is not available in this browser: keep the screen on manually (raise the screen timeout).')}return}
  try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}catch(e){if(!wakeOn.told){wakeOn.told=1;notice('Could not keep the screen awake ('+(e.message||e.name)+'). Keep the screen on manually.')}}}
 const needWake=()=>night||timers.length>0; // pray mode re-requests its own lock (prayLock)
-let visResume=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='hidden'){if(nmA){visResume=true;nPause()}else if(SS)SS.cancel()}
- else{if(ctx&&ctx.state=='suspended')ctx.resume();if(needWake()&&!wl)wakeOn();if(visResume){visResume=false;startAt(offset)}}});
+let visResume=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='hidden'){if(!nmA&&SS){SS.cancel();spkIdx=-1}}
+ else{if(ctx)ensureCtx();if(needWake()&&!wl)wakeOn()}});
 // ---- unified stream: the whole Bible (Gen 1:1 to Rev 22:21) is one timeline; each verse is rendered on the fly when reached
 if(!S.pos)S.pos={b:'Exodus',c:20,v:1};if(S.auto===undefined)S.auto=true;
 const posKey=p=>p.b+'.'+p.c+'.'+p.v;
@@ -462,7 +469,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101205',BUILD_LABEL='build Intersect · 2026101205';
+const BUILD='2026101206',BUILD_LABEL='build Intersect · 2026101206';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 // ---- the Intersect: evolving tone bed, cross-reference echoes, connections strip, follow the thread
@@ -483,7 +490,7 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG};bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
-setInterval(()=>{if(playing||nmA)lastLive=Date.now();if(!bed)return;const T=ctx.currentTime,on=Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16:0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
+setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16:0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
 function bedSteer(orig,eng,dur,refs){bedInit();if(!bed)return;const T=ctx.currentTime;let vals=orig?orig.split(/\s+/).map(gemSum).filter(x=>x):[];
  if(!vals.length)vals=(eng.toLowerCase().match(/[a-z]+/g)||[]).filter(x=>LEX[x]).map(x=>gemSum(LEX[x]));if(!vals.length)vals=[gemSum(eng.toLowerCase())||1];
@@ -520,14 +527,23 @@ function drawMe(){const due=dueList().length,hl=Object.entries(S.hl).slice(-60).
  <h3>Highlights</h3>${hl.map(([k,c])=>{const x=parseK(k);return x?`<button style="border-left:5px solid ${c};margin:3px" onclick="jumpTo('${x.b}',${x.c},${x.v})">${esc(kRef(k))}</button>`:''}).join('')||'<div class="dim">None yet.</div>'}
  <h3>Notes</h3>${nt.map(([k,t])=>{const x=parseK(k);return x?`<div class="card"><b>${esc(kRef(k))}</b><div>${esc(t)}</div><button onclick="jumpTo('${x.b}',${x.c},${x.v})">Open</button></div>`:''}).join('')||'<div class="dim">None yet.</div>'}`}
 // ---- four calm bottom sheets (progressive disclosure)
+// Sound presets: [name, what it's for, band, theta, 777, tone, volume, speed, details]
+const PRE=[['Deep Rest','Slow, low theta under an unhurried reading, for winding down.','5',true,false,.4,.35,'0.75','theta beats 4-6.5 Hz · 777 off · 0.75×'],
+ ['Prayer','Mid theta with the soft bright layer, for quiet prayer.','6',true,true,.5,.45,'1','theta beats 4.5-7.5 Hz · 777 Hz on · 1×'],
+ ['Scripture Study','Edge-of-theta pulse with the tone kept low so the words lead.','7',true,false,.3,.5,'1','theta beats 5.5-8 Hz · 777 off · 1×'],
+ ['Sleep','Very soft and slow; pair it with the sleep timer.','5',true,false,.25,.25,'0.75','theta beats 4-6.5 Hz · 777 off · quiet · 0.75×'],
+ ['Worship','Fuller evolving tone and the bright layer, no beats, fine on speakers.','6',false,true,.7,.55,'1','no theta beats · 777 Hz on · 1×']];
+function drawPre(){PRE.forEach((_,i)=>{const e=$('pre'+i);if(e)e.style.outline=S.preset===i?'2px solid #d9b65a':''})}
+function preset(i){const p=PRE[i];S.band=band.value=p[2];S.theta=theta.checked=p[3];S.s777=s777.checked=p[4];S.tone=evo.value=p[5];S.vol=vol.value=p[6];if(gain)gain.gain.value=+S.vol;S.speed=spd.value=p[7];S.preset=i;bedTune();rerender();drawPre()}
 const SHT={sound:'Sound',reading:'Reading',sleep:'Sleep & Pray',tools:'Tools'};
 function openSheet(n){sheet.style.display=sheetBg.style.display='block';shT.textContent=SHT[n];Object.keys(SHT).forEach(k=>$('sh-'+k).classList.toggle('on',k==n))}
 function closeSheet(){if(window.sheet){sheet.style.display=sheetBg.style.display='none'}}
 function uiInit(){if($('sheet'))return;document.body.insertAdjacentHTML('beforeend',`<div id="sheetBg" onclick="closeSheet()"></div><div id="sheet"><div class="row" style="justify-content:space-between"><b id="shT"></b><button onclick="closeSheet()">✕</button></div>`+
   Object.keys(SHT).map(k=>`<div class="sec" id="sh-${k}"><div id="${k}1"></div><details><summary>More</summary><div id="${k}2"></div></details></div>`).join('')+'</div>');
  const mv=(el,dst)=>{if(el)$(dst).appendChild(el.closest('label')||el)},wrap=(el,t)=>{const l=document.createElement('label');l.className='dim';l.append(t+' ',el);return l},Q=x=>document.querySelector(x);
- mv(theta,'sound1');mv(band,'sound1');mv(evo,'sound1');mv(vol,'sound1');$('sound1').appendChild(wrap(spd,'Speed'));
- $('sound1').insertAdjacentHTML('beforeend',`<label><input type="checkbox" id="s777"> Soft steady 777 Hz layer</label><label class="dim"><input type="checkbox" id="aref"> A=432 (alternative tuning, preference, thin evidence). Default is A=440.</label>`);
+ mv(theta,'sound2');mv(band,'sound2');mv(evo,'sound2');mv(vol,'sound2');$('sound2').appendChild(wrap(spd,'Speed'));
+ $('sound2').insertAdjacentHTML('beforeend',`<label><input type="checkbox" id="s777"> Bright tone, a steady high layer <small class="dim">(777 Hz, a symbolic choice)</small></label><label class="dim"><input type="checkbox" id="aref"> Alternative tuning (432), a preference with thin evidence <small>(default A=440)</small></label>`);
+ $('sound1').innerHTML='<div class="dim">Presets set the whole mix in one tap. Fine controls are under More. The tones are a quiet backdrop for attention, not a treatment.</div>'+PRE.map((p,i)=>`<button class="pre" id="pre${i}" onclick="preset(${i})" style="display:block;width:100%;text-align:left;margin:4px 0"><b>${p[0]}</b><br><span>${p[1]}</span><br><small class="dim">${p[8]}</small></button>`).join('');drawPre();
  $('sound2').insertAdjacentHTML('beforeend',`<div class="dim"><b>What each tone is (no healing claims):</b><br>
  <b>Theta beats</b>: four binaural pairs at once (carriers 150/200/250/300 Hz, beats kept inside 4-8 Hz, the brainwave band called theta). Headphones needed. Research on binaural beats and mood or sleep is mixed and small; treat it as ambience.<br>
  <b>Evolving tone</b>: glides with each word's Hebrew gematria or Greek isopsephy (English letter values where no original text is bundled), folded into 100-400 Hz on a just-intonation set. This mapping is this app's own invention, not something scripture describes.<br>
