@@ -65,7 +65,7 @@ select,input,textarea{font:inherit;background:#1b1a23;color:#ece9f2;border:1px s
  <span id="sws"></span><button onclick="hlSel(null)" title="Remove highlight">✕</button><button onclick="clearSel()">Done</button></div></div>
 <div id="night"><div style="font-size:14px">Night mode · looping</div><div id="nref" style="font-size:18px;margin-top:8px"></div><div id="nv" class="nv"></div>
  <div style="margin-top:30px"><button onclick="toggle()" id="npp">⏯</button><button onclick="nightOff()">Exit</button></div></div>
-<div id="pray"><div style="font-size:14px">Pray · theta pulse only</div><div class="dot"></div>
+<div id="pray" onpointerdown="prayWake()"><div style="font-size:14px">Pray · theta pulse only</div><div class="dot"></div>
  <div><select id="prB" onchange="band.value=S.band=this.value;persist();prayStart()"><option value="6">Theta 6 Hz</option><option value="4.5">Deep theta 4.5 Hz</option><option value="7.5">Light theta 7.5 Hz</option><option value="10">Alpha 10 Hz</option></select></div>
  <div><button onclick="prayPP()" id="prPP">⏸</button><button onclick="prayOff()">Exit</button></div><div class="dim" style="margin-top:20px">Headphones · letter tones and narration muted</div></div>
 <div id="player"><div id="np">—</div><input type="range" id="seek" min="0" max="1000" value="0"><div class="t"><span id="el">0:00</span><span id="st" class="dim"></span><span id="tot">0:00</span></div>
@@ -202,25 +202,32 @@ let night=false,wl=null;async function nightOn(){night=true;document.body.classL
 function nightOff(){night=false;document.body.classList.remove('nm');try{wl&&wl.release()}catch(e){}wl=null}
 document.addEventListener('visibilitychange',async()=>{if(night&&document.visibilityState=='visible')try{wl=await navigator.wakeLock.request('screen')}catch(e){}});
 // ---- pray mode: theta pulse only (build(...,pulseOnly) = 200 / 200+beat binaural + isochronic, no tones/noise/narration), seamless 60 s loop
-let prayM=false,prSrc=null,prG=null,prOn=false;
-function prayStop(){if(prSrc){const s=prSrc,g=prG;prSrc=null;try{g.gain.setTargetAtTime(0,ctx.currentTime,.3);s.stop(ctx.currentTime+1.5)}catch(e){}}prOn=false;prPP.textContent='▶'}
+let prayM=false,prSrc=null,prG=null,prOn=false,prWl=null;
+async function prayLock(){if(!('wakeLock' in navigator))return;try{prWl=await navigator.wakeLock.request('screen');prWl.addEventListener('release',()=>{prWl=null})}catch(e){console.warn('Pray wake lock failed:',e)}}
+function prayUnlock(){if(prWl){prWl.release().catch(e=>console.warn('Pray wake lock release failed:',e));prWl=null}}
+function prayWake(){if(!prayM||!ctx)return;if(ctx.state=='suspended'||ctx.state=='interrupted')ctx.resume().catch(e=>console.warn('AudioContext resume failed:',e));if(prOn&&!prSrc)prayStart()}
+function prayStop(){prOn=false;if(prSrc){const s=prSrc,g=prG;prSrc=null;try{g.gain.setTargetAtTime(0,ctx.currentTime,.3);s.stop(ctx.currentTime+1.5)}catch(e){}}prOn=false;prPP.textContent='▶'}
 function prayStart(){ensureCtx();prayStop();const r=build([],+S.band,1,true,1,false,true);prG=ctx.createGain();prG.gain.value=0;prG.connect(gain);
- prSrc=ctx.createBufferSource();prSrc.buffer=r.buf;prSrc.loop=true;prSrc.connect(prG);prSrc.start();prG.gain.setTargetAtTime(1,ctx.currentTime,1);prOn=true;prPP.textContent='⏸'}
+ const me=prSrc=ctx.createBufferSource();prSrc.buffer=r.buf;prSrc.loop=true;prSrc.connect(prG);prSrc.onended=()=>{if(prSrc===me)prSrc=null};prSrc.start();prG.gain.setTargetAtTime(1,ctx.currentTime,1);prOn=true;prPP.textContent='⏸'}
 function prayPP(){prOn?prayStop():prayStart()}
-async function prayOn(){if(playing||nmA)pause();spkStop();if(night)nightOff();flStop();prayM=true;prB.value=S.band;document.body.classList.add('pm');prayStart();try{wl=await navigator.wakeLock.request('screen')}catch(e){}}
-function prayOff(){prayM=false;prayStop();document.body.classList.remove('pm');try{wl&&wl.release()}catch(e){}wl=null}
+async function prayOn(){if(playing||nmA)pause();spkStop();if(night)nightOff();flStop();prayM=true;prB.value=S.band;document.body.classList.add('pm');prayStart();prayLock()}
+function prayOff(){prayM=false;prayStop();document.body.classList.remove('pm');prayUnlock()}
+document.addEventListener('visibilitychange',()=>{if(prayM&&document.visibilityState=='visible'){prayWake();if(!prWl)prayLock()}});
 // ---- flash reading (RSVP) over the Read tab's KJV chapter; independent of audio so the theta layer can keep playing
 let flW=[],flI=0,flT=null;
 function flWords(){const vs=rbook.c[S.r.c-1];flW=[];flW.chap=S.r.b+S.r.c;vs.forEach((t,i)=>t.split(/\s+/).filter(x=>x).forEach(w=>flW.push([w,i+1])))}
 function flShow(){const x=flW[flI];if(!x){flw.textContent='·';return}const w=x[0],o=Math.min(w.length-1,Math.max(0,Math.ceil(w.length*.35)-1));
  flw.innerHTML=esc(w.slice(0,o))+'<b>'+esc(w[o])+'</b>'+esc(w.slice(o+1));flr.textContent=`${S.r.b} ${S.r.c}:${x[1]} · word ${flI+1}/${flW.length}`}
-function flTick(){flShow();const w=(flW[flI]||[''])[0];let ms=60000/(S.fw||250);if(S.fp){if(/[.;:?!]["')]*$/.test(w))ms*=2.2;else if(/[,]["')]*$/.test(w))ms*=1.5}if(w.length>9)ms*=1.2;
- flI++;if(flI>=flW.length){flT=null;flpp.textContent='▶';flI=0;return}flT=setTimeout(flTick,ms)}
-function flStop(){clearTimeout(flT);flT=null;if(window.flpp)flpp.textContent='▶'}
+const FLK='lt-flash';function flSave(){try{localStorage.setItem(FLK,JSON.stringify({b:S.r.b,c:S.r.c,i:flI}))}catch(e){console.warn('Flash position save failed:',e)}}
+function flLoad(){try{return JSON.parse(localStorage.getItem(FLK)||'null')}catch(e){return null}}
+function flMark(v){const m=S.rd[S.r.b]||(S.rd[S.r.b]={}),k=S.r.c+'.'+v;if(!m[k]){m[k]=1;persist();rProg()}}
+function flTick(){flShow();{const x=flW[flI],nx=flW[flI+1];if(x&&(!nx||nx[1]!=x[1]))flMark(x[1])}if(flI%10==0)flSave();const w=(flW[flI]||[''])[0];let ms=60000/(S.fw||250);if(S.fp){if(/[.;:?!]["')]*$/.test(w))ms*=2.2;else if(/[,]["')]*$/.test(w))ms*=1.5}if(w.length>9)ms*=1.2;
+ flI++;if(flI>=flW.length){flT=null;flpp.textContent='▶';flI=0;flSave();return}flT=setTimeout(flTick,ms)}
+function flStop(){if(flT)flSave();clearTimeout(flT);flT=null;if(window.flpp)flpp.textContent='▶'}
 function flPlay(){if(flT)return flStop();if(!rbook)return;if(!flW.length)flWords();flpp.textContent='⏸';flTick()}
-function flStep(d){if(!flW.length)return;flI=Math.max(0,Math.min(flW.length-1,flI+d));flShow()}
-function flToggle(){const on=flash.style.display!='block';flStop();flash.style.display=on?'block':'none';if(!on||!rbook)return;flS.value=S.fw=S.fw||250;flv.textContent=S.fw;flP.checked=S.fp!==false;S.fp=flP.checked;
- flWords();const v=rsel&&rsel.c==S.r.c?rsel.a:1;flI=Math.max(0,flW.findIndex(x=>x[1]==v));flShow();flash.scrollIntoView({block:'center'})}
+function flStep(d){if(!flW.length)return;flI=Math.max(0,Math.min(flW.length-1,flI+d));flShow();flSave()}
+async function flToggle(){const on=flash.style.display!='block';flStop();if(on&&!rsel){const sp=flLoad();if(sp&&MB[sp.b]&&(sp.b!=S.r.b||sp.c!=S.r.c))await rOpen(sp.b,+sp.c)}flash.style.display=on?'block':'none';if(!on||!rbook)return;flS.value=S.fw=S.fw||250;flv.textContent=S.fw;flP.checked=S.fp!==false;S.fp=flP.checked;
+ flWords();const sp=flLoad(),v=rsel&&rsel.c==S.r.c?rsel.a:1;flI=sp&&sp.b==S.r.b&&sp.c==S.r.c&&!rsel?Math.min(flW.length-1,Math.max(0,+sp.i||0)):Math.max(0,flW.findIndex(x=>x[1]==v));flShow();flash.scrollIntoView({block:'center'})}
 // ---- sleep timer: fade over last 45 s, then stop audio + narration
 let slpEnd=0,slpI=null;function setSleep(m){clearInterval(slpI);slpEnd=m?now()+m*60e3:0;if(gain)gain.gain.value=+S.vol;slpS.textContent='';if(!m)return;
  slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;slpS.textContent=' '+fmt(r)+' left';if(gain&&r<45)gain.gain.value=+S.vol*Math.max(0,r/45);
