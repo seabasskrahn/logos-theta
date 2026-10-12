@@ -471,7 +471,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101207',BUILD_LABEL='build Intersect · 2026101207';
+const BUILD='2026101208',BUILD_LABEL='build Player · 2026101208';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 // ---- the Intersect: evolving tone bed, cross-reference echoes, connections strip, follow the thread
@@ -575,4 +575,115 @@ function setTab(t){if(window.more)more.style.display='none';S.tab=t;persist();ta
  if(t=='find')drawFind();if(t=='queue')drawQueue();if(t=='recall')drawRecall();if(t=='mine')drawMine();if(t=='book')rOpen(S.r.b,S.r.c,S.r.v);if(t=='prof')drawProf();if(t=='me')drawMe();closeSheet()}
 spd.value=S.speed;vol.value=S.vol;band.value=S.band;theta.checked=S.theta;mins.value=S.mins;shB.classList.toggle('on',S.shuffle);np.textContent=track(S.sel)?track(S.sel).ref+' · tap ▶':'—';
 if(!track(S.sel))S.sel={b:"Exodus",c:"20",a:1,z:17};narr.checked=!!S.narr;uiInit();setTab(!S.tab||S.tab=='pub'||S.tab=='read'?'book':S.tab);drawRead();drawVotd();openHash();setAuto(S.auto);bl1.textContent=bl2.textContent=BUILD_LABEL;versionCheck();if(!location.hash.startsWith('#p='))startOverlay();
-</script></body></html>
+</script><style>
+#player{display:none!important}body{padding-bottom:96px}#selbar{bottom:86px}#rbar{bottom:86px}
+#mini{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:7;background:linear-gradient(180deg,#25222f,#1c1a24);border:1px solid #34303f;border-radius:16px;box-shadow:0 6px 24px #000b;display:flex;align-items:center;gap:6px;padding:8px 8px 10px 14px;cursor:pointer;overflow:hidden;transition:transform .3s ease,opacity .3s}
+#mini .mp{position:absolute;left:0;bottom:0;height:3px;background:#d9b65a;transition:width .4s linear}#mini .mt{flex:1;min-width:0}#mini .mr{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#mini .ms{font-size:12px;color:#9a95a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini button{background:none;font-size:22px;border-radius:50%;width:48px;height:48px;padding:0}#mini #mPP{background:#ece9f2;color:#141218}
+body.fpo #mini{transform:translateY(140%);opacity:0}body.nm #mini,body.pm #mini,body.nm #fp,body.pm #fp{display:none}
+#fp{position:fixed;inset:0;z-index:10;background:radial-gradient(120% 70% at 50% 0%,#2b2536 0%,#14121b 60%);transform:translateY(100%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top)) 18px calc(14px + env(safe-area-inset-bottom));visibility:hidden}
+body.fpo #fp{transform:none;visibility:visible}#fp .hd{display:flex;align-items:center;gap:6px}#fp .hd b{flex:1;text-align:center;font:600 15px system-ui;color:#a9a4b8;letter-spacing:.06em;text-transform:uppercase}
+#fp .ib{background:#ffffff10;border-radius:50%;width:44px;height:44px;padding:0;font-size:19px}
+#fpRef{font:600 26px Georgia,serif;color:#d9b65a;text-align:center;margin:8px 0 2px}#fpSub{text-align:center;font-size:13px;color:#9a95a8;min-height:18px}
+#fpTxt{flex:1;overflow-y:auto;margin:10px 0;padding:14px 16px;border-radius:16px;background:#0006;font:19px/1.6 Georgia,serif;color:#cfc9da}#fpTxt .ch{transition:color .3s,background .3s;border-radius:6px;padding:1px 2px}#fpTxt .ch.on{color:#fff;background:#d9b65a33}#fpTxt .he{font-size:20px;margin-bottom:8px}
+.scr{display:flex;align-items:center;gap:8px;font-size:12px;color:#9a95a8}#fpSeek{flex:1;accent-color:#d9b65a;height:28px}
+.tr{display:flex;align-items:center;justify-content:space-between;margin:6px 0}.tr button{background:none;font-size:24px;width:52px;height:52px;padding:0;border-radius:50%}.tr button:active{background:#ffffff14}
+#fpPP{background:#ece9f2!important;color:#141218;width:72px!important;height:72px!important;font-size:30px!important;box-shadow:0 6px 20px #0008}
+.tb{display:flex;justify-content:space-around;gap:4px;margin-top:6px}.tb button{flex:1;background:#ffffff0d;border-radius:14px;font-size:12px;color:#c9c4d6;padding:6px 2px;line-height:1.3}.tb button b{display:block;font-size:15px;color:#ece9f2}.tb button.on{background:#d9b65a;color:#141218}.tb button.on b{color:#141218}
+#fpm{position:fixed;inset:0;z-index:11;background:#0009;opacity:0;pointer-events:none;transition:opacity .25s}#fpm.on{opacity:1;pointer-events:auto}
+#fpmB{position:absolute;left:0;right:0;bottom:0;max-height:78vh;overflow-y:auto;background:#1d1a26;border-radius:20px 20px 0 0;padding:8px 18px calc(18px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1)}#fpm.on #fpmB{transform:none}
+#fpmB .grab{width:40px;height:5px;border-radius:3px;background:#555;margin:4px auto 10px}#fpmB h3{margin:4px 0 8px;font:600 18px system-ui}#fpmB h4{margin:16px 0 6px;font-size:13px;color:#d9b65a;text-transform:uppercase;letter-spacing:.06em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{background:#2a2735;border-radius:22px;padding:8px 14px}.chips button.on{background:#d9b65a;color:#141218;font-weight:600}
+.sl{display:flex;align-items:center;gap:10px;margin:6px 0}.sl span{width:110px;font-size:14px;color:#c9c4d6}.sl input[type=range]{flex:1;accent-color:#d9b65a}.sl output{width:44px;text-align:right;font-size:13px;color:#9a95a8}
+.tg{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2735;font-size:15px}.tg small{display:block;color:#9a95a8;font-size:12px}.tg input{width:22px;height:22px;accent-color:#d9b65a}
+.qi{display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid #2a2735;cursor:pointer;border-radius:8px}.qi:active{background:#ffffff10}.qi .n{width:26px;color:#9a95a8;font-size:12px}.qi .t{flex:1}.qi .t small{display:block;color:#9a95a8;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70vw}.qi.now{background:#d9b65a1f}
+#fpmB select{width:100%}
+</style>
+<div id="mini" onclick="fpOpen()"><div class="mt"><div class="mr" id="mRef">—</div><div class="ms" id="mSub">Tap to open the player</div></div>
+<button id="mPP" onclick="event.stopPropagation();toggle()" aria-label="Play or pause">▶</button><button id="mNx" onclick="event.stopPropagation();stepVerse(1)" aria-label="Next verse">⏭</button><i class="mp" id="mProg"></i></div>
+<div id="fp"><div class="hd"><button class="ib" onclick="fpClose()" aria-label="Close player">⌄</button><b>Now playing</b><button class="ib" id="fpGear" onclick="fpMenu('set')" aria-label="Settings">⚙</button></div>
+<div id="fpRef">—</div><div id="fpSub"></div><div id="fpTxt"></div>
+<div class="scr"><span id="fpA">1</span><input type="range" id="fpSeek" min="1" max="1" value="1" aria-label="Verse"><span id="fpZ">1</span></div>
+<div class="tr"><button onclick="fpRep()" id="fpRepB" title="Repeat">🔁</button><button onclick="stepChapter(-1)" title="Previous chapter">⏮</button><button onclick="stepVerse(-1)" title="Back one verse">↺</button><button id="fpPP" onclick="toggle()">▶</button><button onclick="stepVerse(1)" title="Forward one verse">↻</button><button onclick="stepChapter(1)" title="Next chapter">⏭</button><button onclick="fpMenu('queue')" title="Up next">☰</button></div>
+<div class="tb"><button id="tbSpd" onclick="fpMenu('speed')"><b id="tbSpdV">1×</b>Speed</button><button onclick="fpMenu('voice')"><b>🗣</b>Voice</button><button id="tbSlp" onclick="fpMenu('sleep')"><b id="tbSlpV">⏾</b>Sleep</button><button onclick="fpMenu('queue')"><b>☰</b>Up next</button><button onclick="fpMenu('set')"><b>⚙</b>Settings</button></div></div>
+<div id="fpm" onclick="if(event.target==this)fpMenuClose()"><div id="fpmB"></div></div>
+<script>
+// ---- YouVersion / YouTube Music style player (build 2026101208): mini player, full player sheet, menus; drives the existing engine
+const SPEEDS=['0.5','0.75','1','1.25','1.5','2','2.5','3'];if(!S.rep)S.rep='off';
+const chLen=p=>MB[p.b][2][p.c-1];const isOn=()=>playing||nmA;
+function fpOpen(){document.body.classList.add('fpo');fpRender(1)}function fpClose(){document.body.classList.remove('fpo');fpMenuClose()}
+// speech: one chunk at a time so a chunk can be cancelled and restarted at a new rate
+let SP={ps:[],j:0,done:null,gen:0,txt:''};
+if(SS){const oc=SS.cancel.bind(SS);SS.cancel=function(){SP.gen++;oc()}}
+speakChunks=function(t,onDone){SS.cancel();SP={ps:sayParts(t||' '),j:0,done:onDone||null,gen:SP.gen,txt:t||''};spkNext(SP.gen)};
+function spkNext(g){if(g!=SP.gen)return;if(SP.j>=SP.ps.length){const d=SP.done;SP.done=null;fpHl();d&&d();return}const u=new SpeechSynthesisUtterance(SP.ps[SP.j]);u.rate=Math.min(3,Math.max(.5,+S.speed));const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;
+ const nx=()=>{if(g!=SP.gen)return;SP.j++;spkNext(g)};u.onend=nx;u.onerror=e=>{if(e&&(e.error=='interrupted'||e.error=='canceled'))return;nx()};SS.speak(u);fpHl()}
+function respeak(){if(!SS||!SP.ps.length||SP.j>=SP.ps.length)return;const{ps,j,done,txt}=SP;SS.cancel();SP={ps,j,done,txt,gen:SP.gen};spkNext(SP.gen);
+ if(nmA&&done){clearTimeout(nTimer);const w=ps.slice(j).join(' ').split(/\s+/).length,rt=Math.min(3,Math.max(.5,+S.speed)),est=()=>{if(!document.hidden&&SS.speaking){nTimer=setTimeout(est,1000);return}done()};nTimer=setTimeout(est,(w*.45/rt+2)*1000)}}
+// speed: takes effect at once (speech chunk restarts at the new rate, tone segment and echo timing rebuilt)
+function setSpeed(v){S.speed=spd.value=String(v);persist();
+ if(nmA&&rendered){nSegs={};const b=nSeg(nIdx),s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=b;s.loop=true;s.loopStart=Math.min(b.duration*.25,1);s.loopEnd=Math.max(s.loopStart+.5,b.duration-Math.min(b.duration*.25,1));
+  nFadeOut();g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(1,ctx.currentTime+.3);s.connect(g).connect(gain);s.start();nSrc=s;nG=g;respeak();
+  if(cur&&cur.rb){const p=S.pos;onVerse(p.b,p.c,p.v,[cur.h?cur.h[0]:null,cur.e[0]],streamTok);schedulePre(streamTok)}}
+ else{rerender();if(cur&&cur.rb)schedulePre(streamTok)}fpRender(1)}
+spd.onchange=()=>setSpeed(spd.value);
+if(![...spd.options].some(o=>o.value=='3'))spd.insertAdjacentHTML('beforeend','<option>3</option>');
+// repeat (off / chapter / verse) and sleep at end of chapter, layered on the stream logic
+const _adv=advance,_peek=peekNext;let slpEoc=false;
+function repNext(p){if(!cur||!cur.rb)return null;if(S.rep=='verse')return{...p,end:S.rangeEnd||p};if(S.rep=='chapter')return p.v<chLen(p)?{b:p.b,c:p.c,v:p.v+1,end:chEnd(p.b,p.c)}:{b:p.b,c:p.c,v:1,end:chEnd(p.b,p.c)};return null}
+advance=function(){const p=S.pos;if(slpEoc&&cur&&cur.rb&&p.v==chLen(p)){slpEoc=false;streamTok++;playing=false;nStop();pp.textContent='▶';fpRender(1);return}const r=repNext(p);if(r)return playAt(r.b,r.c,r.v,r.end);return _adv()};
+peekNext=function(){const p=S.pos;if(slpEoc&&p.v==chLen(p))return null;return repNext(p)||_peek()};
+function fpRep(){S.rep={off:'chapter',chapter:'verse',verse:'off'}[S.rep];persist();if(cur&&cur.rb)schedulePre(streamTok);fpRender(1)}
+function sleepSet(m){if(m=='eoc'){setSleep(0);slpEoc=true}else{slpEoc=false;setSleep(+m);slp.value=[...slp.options].some(o=>o.value==m)?m:slp.value}fpRender(1);fpMenu('sleep')}
+// up next: queued items, then the verses that will actually come (follow-the-thread hops when it is on)
+function upNext(){const out=S.queue.map((s,i)=>({q:i,lab:(track(s)||{}).ref||'(removed)',sub:'Queued'}));let p=S.pos;if(!p||!MB[p.b])return out;const seen={[posKey(p)]:1};
+ for(let k=0;k<12;k++){let n=null,why='';if(S.rep=='verse'){out.push({pos:p,lab:`${p.b} ${p.c}:${p.v}`,sub:'Repeating this verse'});break}
+  if(S.thread){const refs=(XC[p.b]||{})[p.c+'.'+p.v]||[];for(const r of refs){const b=META[r[0]][0],kk=b+'.'+r[1]+'.'+r[2];if(!S.visited[kk]&&!seen[kk]){n={b,c:r[1],v:r[2]};why='Follow the thread';break}}}
+  if(!n){if(S.rep=='chapter'&&p.v==chLen(p))n={b:p.b,c:p.c,v:1},why='Repeat chapter';else n=nextPos(p)}if(!n)break;seen[posKey(n)]=1;
+  const bk=BKCACHE[n.b],e=BIBLE[n.b]&&BIBLE[n.b][String(n.c)],tx=e&&e[n.v-1]?e[n.v-1][1]:bk?bk.c[n.c-1][n.v-1]:'';out.push({pos:n,lab:`${n.b} ${n.c}:${n.v}`,sub:why||tx||''});p=n}return out}
+function upGo(i){const it=upNext()[i];if(!it)return;fpMenuClose();if(it.q!=null){const s=S.queue.splice(it.q,1)[0];persist();return go(s)}const n=it.pos;playAt(n.b,n.c,n.v,chEnd(n.b,n.c))}
+// menus
+const MT={speed:'Playback speed',voice:'Voice',sleep:'Sleep timer',queue:'Up next',set:'Player settings'};let fpmK='';
+function fpMenuClose(){fpm.classList.remove('on');fpmK=''}
+function chipRow(list,curV,fn){return'<div class="chips">'+list.map(([v,t])=>`<button class="${String(v)==String(curV)?'on':''}" onclick="${fn}('${v}')">${t}</button>`).join('')+'</div>'}
+function sl(id,lab,min,max,step,v,fmtV){return`<div class="sl"><span>${lab}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${v}"><output id="${id}O">${fmtV(v)}</output></div>`}
+function tg(id,lab,sub,on){return`<label class="tg"><span>${lab}${sub?`<small>${sub}</small>`:''}</span><input type="checkbox" id="${id}" ${on?'checked':''}></label>`}
+function voiceHTML(){loadVoices();return`<select id="mVoice">${voice.innerHTML}</select>`+sl('mPitch','Pitch',.5,1.5,.1,S.pitch||1,x=>(+x).toFixed(1))+`<div class="row" style="margin-top:8px"><button onclick="testVoice()">▶ Test voice</button></div>`+(voices.length?'':'<div class="dim">No voices found. Install one in Settings › Text-to-speech, then reopen.</div>')+'<div class="dim" style="margin-top:6px">Voices come from your device. The rate follows Speed.</div>'}
+function fpMenu(k){if(fpmK!=k)fpmB.scrollTop=0;fpmK=k;const SPD=chipRow(SPEEDS.map(s=>[s,s+'×']),S.speed,'setSpeed');let h=`<div class="grab"></div><h3>${MT[k]}</h3>`;
+ if(k=='speed')h+=SPD+'<div class="dim" style="margin-top:8px">Changes apply straight away: the current phrase restarts at the new rate and the tones follow it.</div>';
+ if(k=='voice')h+=voiceHTML();
+ if(k=='sleep')h+=chipRow([['0','Off'],['5','5 min'],['15','15 min'],['30','30 min'],['45','45 min'],['60','1 hour'],['90','90 min'],['eoc','End of chapter']],slpEoc?'eoc':(slpEnd?'x':'0'),'sleepSet')+`<div class="dim" style="margin-top:8px">${slpEoc?'Stops after the last verse of this chapter.':slpEnd?'Stops in '+fmt((slpEnd-now())/1e3)+' (fades out over the last 45 s).':'Off.'}</div>`;
+ if(k=='queue'){const u=upNext(),p=S.pos;h+=`<div class="qi now"><span class="n">▶</span><span class="t"><b>${p.b} ${p.c}:${p.v}</b><small>Now playing</small></span></div>`+(u.length?u.map((x,i)=>`<div class="qi" onclick="upGo(${i})"><span class="n">${i+1}</span><span class="t">${esc(x.lab)}<small>${esc(x.sub)}</small></span></div>`).join(''):'<div class="dim">Nothing after this.</div>')+
+  tg('mThread','Follow the thread','Fill the queue by hopping to the strongest unvisited cross-reference',S.thread)+tg('mAuto','Auto play','Continue through the Bible',S.auto)+(S.queue.length?'<button style="margin-top:8px" onclick="S.queue=[];persist();fpMenu(\'queue\')">Clear queued items</button>':'')}
+ if(k=='set'){h+='<h4>Presets</h4><div class="chips">'+PRE.map((p,i)=>`<button class="${S.preset===i?'on':''}" onclick="preset(${i});fpMenu('set')" title="${esc(p[1])}">${p[0]}</button>`).join('')+'</div><div class="dim" style="margin-top:4px">A quiet backdrop for attention, not a treatment.</div>'+
+  '<h4>Speed</h4>'+SPD+'<h4>Voice</h4>'+tg('mNarr','Read aloud (KJV narration)','Uses your device voice',S.narr||!(cur&&cur.h))+voiceHTML()+
+  '<h4>Sleep</h4>'+chipRow([['0','Off'],['15','15m'],['30','30m'],['60','1h'],['eoc','End of chapter']],slpEoc?'eoc':(slpEnd?'x':'0'),'sleepSet')+
+  '<h4>Tones</h4>'+sl('mVol','Volume',0,1,.01,S.vol,x=>Math.round(x*100)+'%')+sl('mEvo','Evolving tone',0,1,.05,S.tone,x=>Math.round(x*100)+'%')+
+  tg('mTheta','Theta beats','Binaural pulse, needs headphones',S.theta)+`<div class="sl"><span>Theta centre</span><select id="mBand">${band.innerHTML}</select></div>`+tg('mS777','Bright tone','777 Hz, a symbolic choice',S.s777!==false)+tg('mAref','Alternative tuning (432)','A preference with thin evidence',S.aref==432)+
+  '<h4>Text</h4>'+sl('mFs','Text size',12,32,2,S.r.fs,x=>x+'px')+'<h4>Playback</h4>'+tg('mThread2','Follow the thread','',S.thread)+tg('mAuto2','Auto play','',S.auto)+`<div class="sl"><span>Play per press</span><select id="mChunk">${chunk.innerHTML}</select></div>`+
+  '<h4>More</h4><div class="chips">'+[['sound','🔊 Sound panel'],['reading','📖 Reading'],['sleep','🌙 Sleep & Pray'],['tools','🧰 Tools']].map(([s,t])=>`<button onclick="fpClose();openSheet('${s}')">${t}</button>`).join('')+'</div>'}
+ fpmB.innerHTML=h;fpm.classList.add('on');const B=(id,ev,f)=>{const e=$(id);if(e)e[ev]=f};
+ const mv=$('mVoice');if(mv){mv.value=voice.value;mv.onchange=()=>{voice.value=mv.value;voice.onchange();respeak()}}
+ B('mPitch','oninput',e=>{S.pitch=mPitch.value;mPitchO.textContent=(+S.pitch).toFixed(1);if(window.vPitch)vPitch.value=S.pitch;persist()});B('mPitch','onchange',()=>respeak());
+ B('mVol','oninput',()=>{vol.value=mVol.value;vol.oninput();mVolO.textContent=Math.round(mVol.value*100)+'%'});B('mEvo','oninput',()=>{evo.value=mEvo.value;evo.oninput();mEvoO.textContent=Math.round(mEvo.value*100)+'%'});
+ B('mTheta','onchange',()=>{theta.checked=mTheta.checked;theta.onchange()});B('mS777','onchange',()=>{s777.checked=mS777.checked;s777.onchange()});B('mAref','onchange',()=>{aref.checked=mAref.checked;aref.onchange()});
+ if($('mBand')){mBand.value=band.value;mBand.onchange=()=>{band.value=mBand.value;band.onchange()}}if($('mChunk')){mChunk.value=chunk.value;mChunk.onchange=()=>{chunk.value=mChunk.value;chunk.onchange()}}
+ B('mNarr','onchange',()=>{narr.checked=mNarr.checked;narr.onchange()});B('mFs','oninput',()=>{S.r.fs=+mFs.value;persist();rTheme();fpTxt.style.fontSize=S.r.fs+'px';mFsO.textContent=S.r.fs+'px'});
+ ['mThread','mThread2'].forEach(id=>B(id,'onchange',()=>{thread.checked=$(id).checked;thread.onchange();if(fpmK=='queue')fpMenu('queue')}));['mAuto','mAuto2'].forEach(id=>B(id,'onchange',()=>setAuto($(id).checked)))}
+// rendering
+let fpKey='';function fpHl(){document.querySelectorAll('#fpTxt .ch').forEach((e,i)=>e.classList.toggle('on',isOn()&&SP.txt&&i==SP.j&&fpTxt.dataset.t==SP.txt))}
+function fpRender(force){const p=S.pos,on=isOn(),r=cur&&cur.rb?`${p.b} ${p.c}:${p.v}`:(track(cur||S.sel)||{}).ref||'—',n=cur&&cur.rb&&MB[p.b]?chLen(p):1;
+ mRef.textContent=r;mPP.textContent=fpPP.textContent=on?'⏸':'▶';const sub=`${S.speed}× · ${S.rep!='off'?'repeat '+S.rep+' · ':''}${slpEoc?'sleep at chapter end':slpEnd?'sleep '+fmt((slpEnd-now())/1e3):on?'playing':'paused'}`;mSub.textContent=sub;fpSub.textContent=sub;
+ mProg.style.width=(cur&&cur.rb?p.v/n*100:0)+'%';fpRef.textContent=r;tbSpdV.textContent=S.speed+'×';tbSlpV.textContent=slpEoc?'⏹':slpEnd?fmt((slpEnd-now())/1e3):'⏾';tbSlp.classList.toggle('on',!!(slpEnd||slpEoc));tbSpd.classList.toggle('on',S.speed!='1');
+ fpRepB.textContent=S.rep=='verse'?'🔂':'🔁';fpRepB.style.color=S.rep=='off'?'#7a7588':'#d9b65a';fpRepB.title='Repeat: '+S.rep;
+ if(!fpSeek.matches(':active')){fpSeek.max=n;fpSeek.value=cur&&cur.rb?p.v:1;fpA.textContent='v'+fpSeek.value;fpZ.textContent=n}
+ const t=cur&&rendered?rendered.t:null,txt=t&&t.engParts?(t.engParts[nmA?nIdx:0]||''):'',k=r+'|'+txt;
+ if(force||k!=fpKey){fpKey=k;fpTxt.style.fontSize=S.r.fs+'px';fpTxt.dataset.t=txt;fpTxt.innerHTML=(cur&&cur.h&&cur.h[0]?`<div class="${BKCACHE[p.b]&&BKCACHE[p.b].g?'gr':'he'}">${esc(cur.h[0])}</div>`:'')+(txt?sayParts(txt).map(x=>`<span class="ch">${esc(x)}</span>`).join(''):'<span class="dim">Press play to start listening.</span>')}fpHl();
+ if(fpmK=='sleep'&&force!==1)0}
+fpSeek.oninput=()=>{fpA.textContent='v'+fpSeek.value};
+fpSeek.onchange=()=>{const p=pendPos||S.pos,v=+fpSeek.value,re=S.rangeEnd&&S.rangeEnd.b==p.b&&S.rangeEnd.c==p.c&&S.rangeEnd.v>=v?S.rangeEnd:chEnd(p.b,p.c);playAt(p.b,p.c,v,re)};
+setInterval(()=>fpRender(0),250);
+if('mediaSession' in navigator){const m=navigator.mediaSession;try{m.setActionHandler('seekbackward',()=>stepVerse(-1));m.setActionHandler('seekforward',()=>stepVerse(1));m.setActionHandler('nexttrack',()=>stepVerse(1));m.setActionHandler('previoustrack',()=>stepVerse(-1))}catch(e){}}
+const _pre=preset;preset=function(i){_pre(i);if(fpmK=='set')fpMenu('set')};fpRender(1);
+</script>
+</body></html>
