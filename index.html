@@ -103,7 +103,7 @@ let S=JSON.parse(localStorage.lt2||'null');
 if(!S){const old=JSON.parse(localStorage.lt||'null');S={sel:{b:"Exodus",c:"20",a:1,z:17},queue:[{b:"Genesis",c:"1",a:1,z:3}],hl:{},lastHl:null,srs:{},log:old&&old.log||[],played:{},
  custom:old?old.passages.filter(p=>p.ref!="Genesis 1:1-3"):[],bag:[],band:"6",theta:true,speed:"1",vol:.8,mins:"0",shuffle:false,showHe:true,tab:"read",view:{b:"Exodus",c:"20"},hist:[]};
  if(old){const g=old.passages.find(p=>p.ref=="Genesis 1:1-3");if(g)S.srs["Genesis.1.1-3"]={interval:g.interval,ease:g.ease,due:g.due,reps:g.reps,history:g.history}}}
-const persist=()=>{try{localStorage.lt2=JSON.stringify(S)}catch(e){}};
+const persist=()=>{try{localStorage.lt2=JSON.stringify(S)}catch(e){if(!persist.warned){persist.warned=1;notice('Saving is unavailable (private mode or storage full). Changes will be lost when you close this page.')}}};
 // tracks: verse range {b,c,a,z} or custom {cid}
 function track(s){if(!s)return null;if(s.rb){const t=s.h?s.h:s.e;return{key:'r:'+s.rb+'.'+s.c+'.'+s.a+(s.z>s.a?'-'+s.z:''),ref:`${s.rb} ${s.c}:${s.a}${s.z>s.a?'-'+s.z:''}`,parts:t,engParts:s.e,eng:s.e.join(' '),keys:s.e.map((_,i)=>s.rb+'.'+s.c+'.'+(s.a+i)),tags:Object.keys(TAGS).filter(k=>TAGS[k].test(s.e.join(' '))),droneOnly:!s.h,narrate:!s.h}}
  if(s.cid){const p=S.custom.find(x=>x.id==s.cid);return p&&{engParts:[p.eng],key:'c'+p.id,ref:p.ref,parts:[p.orig||p.eng],eng:p.eng,keys:[],tags:Object.keys(TAGS).filter(k=>TAGS[k].test(p.eng))}}
@@ -154,7 +154,7 @@ function render(keepFrac){const t=track(cur);if(!t)return;st.textContent="Render
  rendered=build(t.parts,+S.band,+S.speed,S.theta,+S.mins,t.droneOnly);rendered.t=t;offset=f*rendered.buf.duration;tot.textContent=fmt(rendered.buf.duration);
  st.textContent=`${S.speed}× · ${S.theta?S.band+' Hz':'theta off'}${t.droneOnly?' · drone + KJV narration (no letter tones)':''}`}
 function stopSrc(){nStop();spkStop();if(src){src.onended=null;try{src.stop()}catch(e){}src.disconnect();src=null}}
-function startAt(o){ensureCtx();if(narrOn()){stopSrc();return nStart(verseAt(o))}stopSrc();offset=Math.max(0,Math.min(o,rendered.buf.duration-.01));src=ctx.createBufferSource();src.buffer=rendered.buf;src.connect(gain);
+function startAt(o){ensureCtx();loadVoices();if(narrOn()){stopSrc();return nStart(verseAt(o))}stopSrc();offset=Math.max(0,Math.min(o,rendered.buf.duration-.01));src=ctx.createBufferSource();src.buffer=rendered.buf;src.connect(gain);
  src.onended=()=>{if(!playing)return;playing=false;offset=0;markPlayed(1e9);ended()};src.start(0,offset);startedAt=ctx.currentTime;playing=true;spkIdx=-1;pp.textContent="⏸";tick()}
 function pause(){if(nmA)return nPause();spkStop();if(!playing)return;offset=pos();playing=false;stopSrc();pp.textContent="▶"}
 function load(sel,autoplay,noHist){nSegs={};if(cur&&!noHist&&track(cur))S.hist.push(cur),S.hist=S.hist.slice(-50);stopSrc();playing=false;cur=sel;S.sel=sel;ensureCtx();render(false);
@@ -189,7 +189,7 @@ function saveWav(){if(!cur||!rendered){ensureCtx();cur=S.sel;render(false);np.te
 // ---- narration (speechSynthesis), slaved to the audio clock
 const SS=window.speechSynthesis;let spkIdx=-1,voices=[];
 function loadVoices(){if(!SS)return;voices=SS.getVoices().filter(v=>/^en/i.test(v.lang));voice.innerHTML=voices.map((v,i)=>`<option value="${i}"${v.name==S.voice?' selected':''}>${v.name} (${v.lang})</option>`).join('')||'<option>default voice</option>'}
-if(SS){loadVoices();SS.onvoiceschanged=loadVoices}
+if(SS){loadVoices();SS.addEventListener?SS.addEventListener('voiceschanged',loadVoices):SS.onvoiceschanged=loadVoices}
 function spkStop(){if(SS)SS.cancel();spkIdx=-1;document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'))}
 function narrTick(){if(nmA)return;if(!SS||!rendered||!(S.narr||rendered.t.narrate)||!rendered.t.engParts)return;const p=pos()%(rendered.pass||1e9),m=rendered.marks;let i=0;while(i+1<m.length&&m[i+1]<=p)i++;
  if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]]||{},txt=rendered.t.engParts[i]||'',u=new SpeechSynthesisUtterance(txt);u.rate=Math.min(2,Math.max(.5,+S.speed));u.lang='en-GB';
@@ -197,10 +197,9 @@ function narrTick(){if(nmA)return;if(!SS||!rendered||!(S.narr||rendered.t.narrat
  if(x.b&&S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}const re=k&&$('r'+k);re&&re.classList.add('spk');if(night)nv.textContent=txt}
 narr.onchange=()=>{const was=playing,o=pos();if(was){nmA?nPause():pause()}S.narr=narr.checked;persist();if(!S.narr)spkStop();if(was)startAt(o);else upd()};voice.onchange=()=>{S.voice=(voices[+voice.value]||{}).name;persist();spkIdx=-1};
 // ---- night mode
-let night=false,wl=null;async function nightOn(){night=true;document.body.classList.add('nm');if(!cur)load(S.sel,false);nref.textContent=track(cur).ref;nv.textContent=track(cur).eng.slice(0,200);
- try{wl=await navigator.wakeLock.request('screen')}catch(e){}if(!playing)toggle()}
+let night=false,wl=null;async function nightOn(){night=true;wakeOn();night=true;document.body.classList.add('nm');if(!cur)load(S.sel,false);nref.textContent=track(cur).ref;nv.textContent=track(cur).eng.slice(0,200);
+ if(!playing)toggle()}
 function nightOff(){night=false;document.body.classList.remove('nm');try{wl&&wl.release()}catch(e){}wl=null}
-document.addEventListener('visibilitychange',async()=>{if(night&&document.visibilityState=='visible')try{wl=await navigator.wakeLock.request('screen')}catch(e){}});
 // ---- pray mode: theta pulse only (build(...,pulseOnly) = 200 / 200+beat binaural + isochronic, no tones/noise/narration), seamless 60 s loop
 let prayM=false,prSrc=null,prG=null,prOn=false,prWl=null;
 async function prayLock(){if(!('wakeLock' in navigator))return;try{prWl=await navigator.wakeLock.request('screen');prWl.addEventListener('release',()=>{prWl=null})}catch(e){console.warn('Pray wake lock failed:',e)}}
@@ -230,7 +229,7 @@ async function flToggle(){const on=flash.style.display!='block';flStop();if(on&&
  flWords();const sp=flLoad(),v=rsel&&rsel.c==S.r.c?rsel.a:1;flI=sp&&sp.b==S.r.b&&sp.c==S.r.c&&!rsel?Math.min(flW.length-1,Math.max(0,+sp.i||0)):Math.max(0,flW.findIndex(x=>x[1]==v));flShow();flash.scrollIntoView({block:'center'})}
 // ---- sleep timer: fade over last 45 s, then stop audio + narration
 let slpEnd=0,slpI=null;function setSleep(m){clearInterval(slpI);slpEnd=m?now()+m*60e3:0;if(gain)gain.gain.value=+S.vol;slpS.textContent='';if(!m)return;
- slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;slpS.textContent=' '+fmt(r)+' left';if(gain&&r<45)gain.gain.value=+S.vol*Math.max(0,r/45);
+ slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;if(ctx&&ctx.state=='suspended'&&playing)ctx.resume();slpS.textContent=' '+fmt(r)+' left';if(gain&&r<45)gain.gain.value=+S.vol*Math.max(0,r/45);
   if(r<=0){clearInterval(slpI);pause();spkStop();slpEnd=0;slp.value='0';slpS.textContent=' stopped';setTimeout(()=>{if(gain)gain.gain.value=+S.vol},500)}},500)}
 // ---- verse of the day (deterministic by date; prefers due + highlighted)
 function drawVotd(){const d=new Date().toDateString();if(S.votdX==d){votd.innerHTML='';return}const pool=new Set(Object.keys(S.hl));
@@ -328,8 +327,8 @@ function checkRecall(k){const t=track(selOfKey(k)),typed=$('rt').value.toLowerCa
 
 // ---- sleep cues
 let timers=[];function sleepStart(){sleepStop();const t=track(cur||S.sel),cue=tone(([...t.parts.join('')].map(val).find(x=>x))||1);
- sleepS.textContent=`Cues set for ${t.ref} at 25, 40, 115 and 130 min. Keep the screen on and the volume low.`;try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}
- timers=[25,40,115,130].map(m=>setTimeout(()=>{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.frequency.value=cue;g.gain.setValueAtTime(0,c.currentTime);
+ sleepS.textContent=`Cues set for ${t.ref} at 25, 40, 115 and 130 min. Keep the screen on and the volume low.`;ensureCtx();wakeOn();
+ timers=[25,40,115,130].map(m=>setTimeout(()=>{const c=ctx;if(c.state=='suspended')c.resume();const o=c.createOscillator(),g=c.createGain();o.frequency.value=cue;g.gain.setValueAtTime(0,c.currentTime);
   g.gain.linearRampToValueAtTime(.05,c.currentTime+2);g.gain.linearRampToValueAtTime(0,c.currentTime+6);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+6)},m*60e3))}
 function sleepStop(){timers.forEach(clearTimeout);timers=[];sleepS.textContent=""}
 
@@ -376,6 +375,14 @@ let PUB=null;async function showPub(o,note){if(!o||!o.id||!Array.isArray(o.h))re
 async function openHash(){const m=location.hash.match(/^#p=(.+)$/);if(!m)return;let o;try{o=await dec(m[1])}catch(e){alert('This profile link could not be read.');return}
  let note='';const f=S.follow[o.id];if(f&&o.id!=S.prof.id){if(o.t>f.t){S.follow[o.id]=o;persist();note='Updated your saved copy.'}else if(o.t<f.t)note='You already have a newer snapshot from this person.'}showPub(o,note)}
 addEventListener('hashchange',openHash);
+// ---- phone robustness: notices, wake lock, visibility handling
+function notice(msg){let n=$('ltNotice');if(!n){document.body.insertAdjacentHTML('afterbegin','<div id="ltNotice" style="position:fixed;top:0;left:0;right:0;z-index:30;background:#3a2a10;color:#f0dca0;font-size:13px;padding:8px 36px 8px 12px"></div>');n=$('ltNotice')}
+ n.innerHTML=esc(msg)+'<button style="position:absolute;right:4px;top:2px;background:none" onclick="this.parentNode.remove()">✕</button>'}
+async function wakeOn(){if(!('wakeLock' in navigator)){if(!wakeOn.told){wakeOn.told=1;notice('Screen wake lock is not available in this browser: keep the screen on manually (raise the screen timeout).')}return}
+ try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}catch(e){if(!wakeOn.told){wakeOn.told=1;notice('Could not keep the screen awake ('+(e.message||e.name)+'). Keep the screen on manually.')}}}
+const needWake=()=>night||timers.length>0; // pray mode re-requests its own lock (prayLock)
+let visResume=false;document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='hidden'){if(nmA){visResume=true;nPause()}else if(SS)SS.cancel()}
+ else{if(ctx&&ctx.state=='suspended')ctx.resume();if(needWake()&&!wl)wakeOn();if(visResume){visResume=false;startAt(offset)}}});
 // ---- tabs + init
 const TABS=[["read","Listen"],["book","Read"],["find","Search"],["queue","Up Next"],["recall","Recall"],["sleep","Sleep"],["mine","My passages"],["prof","Profile"]];
 function setTab(t){S.tab=t;persist();tabs.innerHTML=TABS.map(([k,n])=>`<button class="${k==t?'on':''}" onclick="setTab('${k}')">${n}</button>`).join('');TABS.concat([['pub']]).forEach(([k])=>$('s-'+k).classList.toggle('on',k==t));
