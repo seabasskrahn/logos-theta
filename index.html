@@ -211,7 +211,7 @@ function ensureCtx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioCo
 document.addEventListener('pointerdown',()=>{if(ctx)ensureCtx()},true);
 const pos=()=>nmA?(rendered.marks[nIdx]||0):playing?Math.min(rendered.buf.duration,offset+ctx.currentTime-startedAt):offset;
 function render(keepFrac){const t=track(cur);if(!t)return;st.textContent="Rendering…";const f=keepFrac&&rendered?pos()/rendered.buf.duration:0;
- rendered=build(t.parts,+S.band,+S.speed,false,cur.rb?0:+S.mins,false);rendered.t=t;offset=f*rendered.buf.duration;tot.textContent=fmt(rendered.buf.duration);
+ rendered=build(t.parts,+S.band,+S.speed,false,cur.rb?0:+S.mins,true);rendered.t=t;offset=f*rendered.buf.duration;tot.textContent=fmt(rendered.buf.duration);
  st.textContent=`${S.speed}× · ${S.theta?S.band+' Hz':'theta off'}${t.droneOnly?' · drone + KJV narration (no letter tones)':''}`}
 function stopSrc(){nStop();spkStop();clearTimeout(preT);if(src){const s=src,g=s._g;s.onended=null;src=null;if(g&&ctx){const T=ctx.currentTime;g.gain.cancelScheduledValues(T);g.gain.setValueAtTime(g.gain.value,T);g.gain.linearRampToValueAtTime(0,T+.25)}setTimeout(()=>{try{s.stop()}catch(e){}s.disconnect();g&&g.disconnect()},320)}}
 function startAt(o){ensureCtx();loadVoices();if(narrOn()){stopSrc();return nStart(verseAt(o))}stopSrc();offset=Math.max(0,Math.min(o,rendered.buf.duration-.01));src=ctx.createBufferSource();src.buffer=rendered.buf;const sg=ctx.createGain(),T0=ctx.currentTime;sg.gain.setValueAtTime(0,T0);sg.gain.linearRampToValueAtTime(1,T0+.25);src.connect(sg).connect(gain);src._g=sg;
@@ -491,7 +491,7 @@ function peekNext(){const p=S.pos;if(!cur||!cur.rb)return null;
 const preKey=()=>S.speed+'|'+S.aref+'|'+S.narr;
 async function schedulePre(tok){clearTimeout(preT);pre=null;if(!cur||!cur.rb)return;if(S.thread)await getX(S.pos.b).catch(()=>0);if(tok!=streamTok)return;const n=peekNext();if(!n)return;
  let d;try{d=await verseData(n.b,n.c,n.v);await getX(n.b).catch(()=>0)}catch(e){return}if(tok!=streamTok||narrOn())return;
- await new Promise(r=>setTimeout(r,30));if(tok!=streamTok)return;const sel={rb:n.b,c:+n.c,a:n.v,z:n.v,e:[d[1]],h:d[0]?[d[0]]:null},t=track(sel),r=build(t.parts,+S.band,+S.speed,false,0,false);r.t=t;
+ await new Promise(r=>setTimeout(r,30));if(tok!=streamTok)return;const sel={rb:n.b,c:+n.c,a:n.v,z:n.v,e:[d[1]],h:d[0]?[d[0]]:null},t=track(sel),r=build(t.parts,+S.band,+S.speed,false,0,true);r.t=t;
  pre={n,d,sel,r,tok,key:preKey()};armPre()}
 function armPre(){clearTimeout(preT);if(!pre||!playing||nmA||!rendered)return;const left=rendered.buf.duration-pos()-XF;preT=setTimeout(swapPre,Math.max(0,left*1000))}
 function swapPre(){const p=pre;if(!p||p.tok!=streamTok||!playing||nmA||narrOn()||p.key!=preKey())return;pre=null;const T=ctx.currentTime+.02;
@@ -515,7 +515,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101215',BUILD_LABEL='build Live · 2026101215';
+const BUILD='2026101216',BUILD_LABEL='build Live · 2026101216';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -552,16 +552,18 @@ function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.curr
  // verse drone: the pupil F0 (+ sub-octave) plus the verse's 3 rarest lemmas, each pulled to the nearest consonance of F0
  f0.cancelScheduledValues(T);f0.setTargetAtTime(F0*2*TU,T,1.5);bed.o[1].frequency.setTargetAtTime(F0*TU,T,3);bed.g[0].gain.setTargetAtTime(.18,T,2);bed.g[1].gain.setTargetAtTime(.22,T,2);
  bed.dv.forEach((d,i)=>{const h=vs.hz[i+1];if(h)d.x.frequency.setTargetAtTime(h*2*TU,T,1.5);d.y.gain.setTargetAtTime(h?.07:0,T,2)});bed.lastVs=vs;
- cbWordsPlay(vs.ws,dur,narrOn());
+ cbWordsPlay(vs.ws,dur,true);
  const w=themeW(eng,refs),ord=w.map((x,i)=>[x,i]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]),tot=ord.reduce((a,x)=>a+x[0],0)||1;
  [2,3].forEach((oi,j)=>{const t=ord[j];if(t){bed.o[oi].frequency.setTargetAtTime(THEMES[t[1]][2]*TUNE(),T,3);bed.g[oi].gain.setTargetAtTime(.012+.04*t[0]/tot,T,3)}else bed.g[oi].gain.setTargetAtTime(.005,T,3)});
  const ls=w[2]+w[3];bed.lfo.frequency.setTargetAtTime(ls>.5?40:7.83,T,3);bed.lfoG.gain.setTargetAtTime(ls>.5?.04:.08,T,3)}
 const gIdx=(bi,c,v)=>bi*1e6+c*1e3+v;
 // one signature note per word, spread across the verse's narration; ramped in/out (no clicks); 'Now decoding' line follows
-function cbWordsPlay(ws,dur,audio){const tok=++cbTok,n=Math.min(ws.length,120);if(!n){cbShow(null);return}const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05,TU=TUNE();
- for(let k=0;k<n;k++){const x=ws[k],t=t0+k*step;setTimeout(()=>{if(tok==cbTok&&(playing||nmA))cbShow(x)},(t-ctx.currentTime)*1000);
-  if(!audio||!x.key)continue;const len=Math.min(step*.9,1.2);const pw=genreWave(genreOf(curBook()));x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;if(pw&&!j)o.setPeriodicWave(pw);
-   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.05);g.gain.setValueAtTime(a,t+len*.5);g.gain.linearRampToValueAtTime(0,t+len);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+len+.05);o.onended=()=>{o.disconnect();g.disconnect()}})}}
+function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU=TUNE(),pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;if(pw&&!j)o.setPeriodicWave(pw);
+   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.05);g.gain.setValueAtTime(a,t+len*.5);g.gain.linearRampToValueAtTime(0,t+len);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+len+.05);o.onended=()=>{o.disconnect();g.disconnect()}})}
+let cbCurWs=[],cbAudio=false;
+function cbWordsPlay(ws,dur,audio){const tok=++cbTok,n=Math.min(ws.length,120);cbCurWs=ws;cbAudio=audio;if(!n){cbShow(null);return}if(window.rsvpDrives&&rsvpDrives())return;const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05;
+ for(let k=0;k<n;k++){const x=ws[k],t=t0+k*step;setTimeout(()=>{if(tok==cbTok&&(playing||nmA)){cbShow(x);if(x.key)window.LT_TONE={hz:x.hz[0]*TUNE(),p:x.hz.map(f=>f*TUNE()),t:performance.now()}}},(t-ctx.currentTime)*1000);
+  if(!audio||!x.key)continue;cbTone(x,t,Math.min(step*.9,1.2))}}
 function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===false?'none':'';if(!x){e.textContent='';return}
  const pl=x.place?` · 📍 ${x.place.name.replace(/ \d+$/,"")}${x.place.modern&&x.place.modern!=x.place.name?' ('+x.place.modern+')':''}`:'';
  e.textContent=(x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.ratio}${x.oct?' ×'+(1<<x.oct):''} · ${Math.round(x.hz[0]*TUNE())} Hz · ${x.n}× · first ${gRef(x.first)} · ${GENRES[genreOf(curBook())][0]}`:`Now decoding: ${x.w} · (not in codebook, rest)`)+pl}
@@ -569,7 +571,7 @@ function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===fa
 // while the cross reference's key tones swell in from the opposite side (left = earlier in the Bible, right = later), mirrored
 // envelopes crossing at the centre. Bidirectional: the same pair heard from the other verse mirrors the sides.
 async function refTones(r){try{const b=META[r[0]][0],bk=await getBook(b),t=bk.c[r[1]-1][r[2]-1]||'';return verseSig(t,gIdxG(b,r[1],r[2])).hz.slice(1)}catch(e){return[]}}
-function meet(mine,theirs,dir,len){if(!bed||!ctx.createStereoPanner)return;const t=ctx.currentTime+.05,TU=TUNE(),ev=(S.echoVol!=null?+S.echoVol:1)*.1;
+function meet(mine,theirs,dir,len){window.LT_MEET={dir,t:performance.now(),len,hz:theirs[0]||F0};if(!bed||!ctx.createStereoPanner)return;const t=ctx.currentTime+.05,TU=TUNE(),ev=(S.echoVol!=null?+S.echoVol:1)*.1;
  const voice=(f,from,to,up)=>{const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createStereoPanner();o.frequency.value=f*2*TU;p.pan.setValueAtTime(from,t);p.pan.linearRampToValueAtTime(to,t+len);
   g.gain.setValueAtTime(up?0:ev,t);g.gain.linearRampToValueAtTime(up?ev:0,t+len);g.gain.linearRampToValueAtTime(0,t+len+.4);o.connect(g).connect(p).connect(bed.lp);o.start(t);o.stop(t+len+.5);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect()}};
  voice(F0,0,0,true);mine.forEach(f=>voice(f,-dir,dir*.0,false));theirs.forEach(f=>voice(f,dir,0,true))}
@@ -859,6 +861,9 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'theme',l:'Theme',d:'Reader colours.',t:'sel',o:()=>[...rthS.options].map(o=>[o.value,o.text]),g:()=>S.r.theme,s:v=>ctl(rthS,v,'change')},
   {k:'nums',l:'Show verse numbers',d:'Numbers beside each verse.',t:'chk',g:()=>S.nums,s:v=>{S.nums=v;persist();applyDisplay()}},
   {k:'xrefTabs',l:'Show cross-reference tabs',d:'Tappable tabs under the current verse.',t:'chk',g:()=>S.xrefTabs,s:v=>{S.xrefTabs=v;persist();applyDisplay()}},
+  {k:'rsvp',l:'Speed-reading view (RSVP)',d:'Flash the words one chunk at a time in the player, locked to the voice and tones.',t:'chk',g:()=>!!S.rsvp,s:v=>{S.rsvp=v;persist();rsvpApply()}},
+  {k:'rsvpN',l:'RSVP chunk size',d:'Words per flash.',t:'range',min:1,max:5,step:1,g:()=>S.rsvpN||1,s:v=>{S.rsvpN=+v;persist();rsvpApply()},f:x=>x+(x>1?' words':' word')},
+  {k:'viz',l:'Background visual',d:'Animated visual behind the player, driven by the sound.',t:'sel',o:()=>[['eye','Eye waves'],['spec','Spectrum'],['stars','Starfield'],['off','Off']],g:()=>S.viz||'eye',s:v=>{S.viz=v;persist()}},
   {k:'he',l:'Original text',d:'Show Torah Hebrew / NT Greek where bundled.',t:'chk',g:()=>S.r.he,s:v=>ctl(rhe,v,'change')}]],
  ['int','🔗','Intersect','Follow the thread, cross-refs shown',[
   {k:'thread',l:'Follow the thread',d:'Hop to the strongest unvisited cross reference.',t:'chk',g:()=>S.thread,s:v=>ctl(thread,v,'change')},
@@ -897,5 +902,76 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  // one source of truth: hide the old scattered reader controls (font size, theme) - they now live in Settings
  document.querySelectorAll('[onclick="rFs(-1)"],[onclick="rFs(1)"]').forEach(e=>e.style.display='none');rthS.style.display='none';
  applyDisplay();})();
+
+// ---- RSVP speed-reading view + background visualizer (build 2026101216). Plain JS.
+(function(){
+ const css=document.createElement('style');css.textContent=`#vizC{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0;transition:opacity .4s}body.fpo #vizC{opacity:1}
+ #fp{background:radial-gradient(120% 70% at 50% 0%,#2b2536cc 0%,#14121bdd 60%)!important}body.fpo #vizC~#fp,#fp{}#vizS{position:fixed;inset:0;z-index:9;pointer-events:none;background:#0a090ecc;display:none}body.fpo #vizS{display:block}
+ #rsvp{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;min-height:30vh;touch-action:pan-x;user-select:none}body.rsvpOn #rsvp{display:flex}body.rsvpOn #fpTxt{display:none}
+ #rsvpW{font:600 44px Georgia,serif;color:#ece9f2;text-align:center;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:clip;text-shadow:0 2px 10px #000}#rsvpW .orp{color:#e05050}
+ #rsvpG{width:2px;height:12px;background:#d9b65a66;margin:4px auto}#rsvpI{font-size:12px;color:#9a95a8;margin-top:8px}
+ .rsb{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:4px 0}.rsb button{background:#ffffff10;border-radius:14px;padding:4px 10px;font-size:13px}.rsb button.on{background:#d9b65a;color:#141218}
+ #rsvpT{position:fixed;inset:0;z-index:12;background:#0d0c12f2;overflow-y:auto;padding:calc(54px + env(safe-area-inset-top)) 18px 40px;font:19px/1.7 Georgia,serif;color:#cfc9da;display:none}body.rsvpT #rsvpT{display:block}
+ #rsvpT .w{border-radius:4px;cursor:pointer}#rsvpT .w.on{background:#d9b65a;color:#141218}#rsvpT sup{color:#7a7588;font-size:11px;margin-right:3px}#rsvpTx{position:fixed;top:calc(8px + env(safe-area-inset-top));right:12px;z-index:13;display:none}body.rsvpT #rsvpTx{display:block}`;
+ document.head.appendChild(css);
+ const cv=document.createElement('canvas');cv.id='vizC';document.body.insertBefore(cv,document.body.firstChild);const scr=document.createElement('div');scr.id='vizS';document.body.insertBefore(scr,cv.nextSibling);
+ fpDec.insertAdjacentHTML('beforebegin','<div id="rsvp"><div id="rsvpG"></div><div id="rsvpW">&nbsp;</div><div id="rsvpG"></div><div id="rsvpI"></div></div>');
+ fpDec.insertAdjacentHTML('afterend','<div class="rsb"><button id="rsvpB" onclick="S.rsvp=!S.rsvp;persist();rsvpApply()">⚡ Speed read</button><button id="rsvpNB" onclick="S.rsvpN=(S.rsvpN||1)%5+1;persist();rsvpApply()">1 word</button><button onclick="rsvpText(1)" title="Full text (or swipe down)">📜 Text</button></div>');
+ document.body.insertAdjacentHTML('beforeend','<div id="rsvpT"></div><button id="rsvpTx" class="ib" onclick="rsvpText(0)" aria-label="Back to flash view">⌃</button>');
+ // ---- clock: words of the current verse, index from boundary events (if they fire) or the word-count estimate
+ const R={key:'',words:[],i:-1,el:0,last:0,bAt:0,bI:-1,shown:-1};window.LT_RSVP=R;
+ const wordsOf=t=>String(t||'').split(/\s+/).filter(Boolean);
+ window.rsvpDrives=()=>!!S.rsvp&&document.body.classList.contains('fpo')&&!document.hidden;
+ window.rsvpApply=function(){document.body.classList.toggle('rsvpOn',!!S.rsvp);rsvpB.classList.toggle('on',!!S.rsvp);const n=S.rsvpN||1;rsvpNB.textContent=n+(n>1?' words':' word');R.shown=-1};
+ const perWord=()=>narrOn()?.42/vRate():.62/(+S.speed||1);  // narration estimate (same as onVerse) / tone-buffer pace (.5+.12 s per word at 1x)
+ window.rsvpWPM=()=>Math.round(60/perWord());
+ const vText=()=>cur&&rendered&&rendered.t&&rendered.t.engParts?(rendered.t.engParts[nmA?nIdx:0]||''):'';
+ // boundary events: count words before charIndex in the current speech chunk
+ if(window.SpeechSynthesisUtterance&&SS){const sp=SS.speak.bind(SS);SS.speak=function(u){try{const j=SP.j,before=wordsOf(SP.ps.slice(0,j).join(' ')).length;u.addEventListener('boundary',e=>{if(e.name&&e.name!='word')return;R.bI=before+wordsOf((SP.ps[j]||'').slice(0,e.charIndex+1)).length-1;R.bAt=performance.now()})}catch(e){}return sp(u)}}
+ function tick(now){const t=vText(),k=(S.pos?S.pos.b+S.pos.c+'.'+S.pos.v:'')+'|'+t;if(k!=R.key){R.key=k;R.words=wordsOf(t);R.el=0;R.i=-1;R.bI=-1;R.shown=-1}
+  const dt=Math.max(0,Math.min(.25,(now-R.last)/1000));R.last=Math.max(R.last,now);if(isOn())R.el+=dt;
+  let i=Math.floor(R.el/perWord());if(narrOn()&&R.bI>=0&&now-R.bAt<4000)i=R.bI;  // follow real boundaries while they keep arriving
+  i=Math.max(0,Math.min(i,R.words.length-1));if(i!=R.i||R.shown<0){R.i=i;onWord(i)}return i}
+ window.LT_RSVP_TICK=tick;
+ function orp(w){const L=w.replace(/[^A-Za-z]/g,'').length,o=L<=1?0:L<=5?1:L<=9?2:L<=13?3:4;let c=-1,out='';for(const ch of w){if(/[A-Za-z]/.test(ch))c++;out+=c==o&&/[A-Za-z]/.test(ch)?`<span class="orp">${esc(ch)}</span>`:esc(ch);if(c==o&&/[A-Za-z]/.test(ch))c=99}return out}
+ function onWord(i){if(i<0||!R.words.length)return;const n=S.rsvpN||1,ch=Math.floor(i/n);
+  if(ch!=R.shown){R.shown=ch;const ws=R.words.slice(ch*n,ch*n+n),m=Math.floor((ws.length-1)/2);rsvpW.innerHTML=ws.map((w,j)=>j==m?orp(w):esc(w)).join(' ')||'&nbsp;'}
+  rsvpI.textContent=(narrOn()?`${S.speed}× voice`:`${S.speed}× · ${rsvpWPM()} wpm`)+` · word ${i+1}/${R.words.length}`+(narrOn()&&R.bI>=0&&performance.now()-R.bAt<4000?' · synced to voice':'');
+  if(rsvpDrives()&&(playing||nmA)&&cbCurWs.length){const x=cbCurWs[Math.min(cbCurWs.length-1,Math.floor(i*cbCurWs.length/R.words.length))];cbShow(x);if(cbAudio&&ctx)cbTone(x,ctx.currentTime+.02,Math.min(perWord()*.9,1.2))}
+  if(document.body.classList.contains('rsvpT')){document.querySelectorAll('#rsvpT .w.on').forEach(e=>e.classList.remove('on'));const e=document.querySelector(`#rsvpT .w[data-v="${S.pos&&S.pos.v}"][data-i="${i}"]`);if(e){e.classList.add('on');e.scrollIntoView({block:'center',behavior:'smooth'})}}}
+ // ---- full text view (swipe down / 📜), tap a word to jump
+ window.rsvpText=async function(on){document.body.classList.toggle('rsvpT',!!on);if(!on||!S.pos||!S.pos.b)return;const p=S.pos;let bk;try{bk=await getBook(p.b)}catch(e){rsvpT.textContent='Text not available offline.';return}
+  rsvpT.innerHTML=`<h3>${esc(p.b)} ${p.c}</h3>`+bk.c[p.c-1].map((t,vi)=>`<sup>${vi+1}</sup>`+wordsOf(t).map((w,i)=>`<span class="w" data-v="${vi+1}" data-i="${i}">${esc(w)}</span>`).join(' ')).join(' ');R.i=-2;tick(performance.now())};
+ rsvpT.addEventListener('click',e=>{const w=e.target.closest('.w');if(!w)return;const v=+w.dataset.v,i=+w.dataset.i,p=S.pos;playAt(p.b,p.c,v,S.rangeEnd&&S.rangeEnd.v>=v?S.rangeEnd:chEnd(p.b,p.c));setTimeout(()=>{if(!narrOn())R.el=i*perWord()},700)});
+ let ty=null;const sw=(el,f)=>{el.addEventListener('touchstart',e=>{ty=e.touches[0].clientY},{passive:true});el.addEventListener('touchend',e=>{if(ty==null)return;const d=e.changedTouches[0].clientY-ty;ty=null;f(d)},{passive:true})};
+ sw(rsvp,d=>{if(d>60)rsvpText(1)});sw(rsvpT,d=>{if(d<-60&&rsvpT.scrollTop+rsvpT.clientHeight>=rsvpT.scrollHeight-4)rsvpText(0)});rsvpTx.ontouchend=null;
+ // ---- visualizer: AnalyserNode on the master mix
+ let an=null,fd=null,td=null,stars=null,lastF=0;const mob=/Android|iPhone|iPad|Mobi/i.test(navigator.userAgent),c2=cv.getContext('2d');
+ function size(){const d=Math.min(devicePixelRatio||1,mob?1:1.5);cv.width=innerWidth*d;cv.height=innerHeight*d}addEventListener('resize',size);size();
+ function draw(now){const W=cv.width,H=cv.height,st=S.viz||'eye';c2.clearRect(0,0,W,H);if(st=='off'||!document.body.classList.contains('fpo')){scr.style.display='none';return}scr.style.display='';
+  if(!an&&ctx&&gain){an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=.8;gain.connect(an);fd=new Uint8Array(an.frequencyBinCount);td=new Uint8Array(an.fftSize)}
+  if(an){an.getByteFrequencyData(fd);an.getByteTimeDomainData(td)}const lvl=fd?fd.slice(0,64).reduce((a,x)=>a+x,0)/64/255:0,T=now/1000;c2.globalAlpha=.55;
+  if(st=='spec'){const n=48;for(let i=0;i<n;i++){const v=fd?fd[Math.floor(Math.pow(i/n,1.6)*fd.length*.5)]/255:.05,h=v*H*.6,x=i*W/n;c2.fillStyle=`hsl(${40+i*4},70%,${35+v*30}%)`;c2.fillRect(x+1,H-h,W/n-2,h);c2.fillRect(x+1,0,W/n-2,h*.3)}}
+  else if(st=='stars'){if(!stars)stars=[...Array(mob?90:180)].map(()=>[Math.random()*2-1,Math.random()*2-1,Math.random()]);c2.fillStyle='#e8e0ff';stars.forEach(s=>{s[2]-=.004+lvl*.03;if(s[2]<=.02){s[0]=Math.random()*2-1;s[1]=Math.random()*2-1;s[2]=1}const x=W/2+s[0]/s[2]*W*.3,y=H/2+s[1]/s[2]*H*.3,r=(1-s[2])*3;c2.fillRect(x,y,r,r)})}
+  else{const cy=H/2+BEND.y*H*.15,amp=H*(.06+lvl*.25)*(1+Math.abs(BEND.x)*.6),tn=window.LT_TONE,age=tn?(now-tn.t)/1000:9,pulse=Math.max(0,1-age/1.2),
+    kf=tn?2+Math.log2(tn.hz/110)*3:3,parts=tn&&tn.p?tn.p.slice(1).map(f=>f/tn.hz):[],bx=BEND.x;
+   const wave=(col,sg,u0,u1,a2,ph)=>{c2.strokeStyle=col;c2.lineWidth=2;c2.beginPath();let first=1;for(let x=u0*W;x<=u1*W;x+=6){const u=x/W,env=Math.sin(Math.PI*u),k=td?(td[Math.floor(u*(td.length-1))]-128)/128:0;
+     let y=Math.sin(u*Math.PI*kf+sg*T*1.3+ph+bx*3*(u-.5))*Math.cos(T*.7);parts.forEach((r,j)=>y+=.25*pulse*Math.sin(u*Math.PI*kf*r*2+T*(2+j)));
+     y=cy+sg*env*(a2*y+k*H*.08)+BEND.y*H*.1*Math.exp(-Math.pow((u-BEND.u)*4,2));first?c2.moveTo(x,y):c2.lineTo(x,y);first=0}c2.stroke()};
+   wave('#d9b65a',1,0,1,amp,0);wave('#5a8fe0',-1,0,1,amp,0);
+   const m=window.LT_MEET;if(m){const e=(now-m.t)/1000/m.len;if(e<1.3){const f=Math.min(1,e),from=m.dir<0?0:1,u0=m.dir<0?0:1-f*.5,u1=m.dir<0?f*.5:1;c2.globalAlpha=.55*Math.min(1,(1.3-e)*3);wave('#e8e0ff',m.dir<0?1:-1,Math.min(u0,u1),Math.max(u0,u1),amp*.8,Math.PI/2);c2.globalAlpha=.55}}
+   const hue=tn?40+Math.log2(tn.hz/110)*90:40;c2.strokeStyle=`hsla(${hue},70%,60%,${.3+.5*pulse})`;c2.lineWidth=3+6*pulse;c2.beginPath();c2.arc(W/2,cy,Math.min(W,H)*(.12+.04*pulse+.05*lvl),0,7);c2.stroke();
+   parts.forEach((r,j)=>{c2.strokeStyle=`hsla(${hue+30*(j+1)},60%,60%,${.2*pulse})`;c2.lineWidth=1.5;c2.beginPath();c2.arc(W/2,cy,Math.min(W,H)*(.12*r+.02*pulse),0,7);c2.stroke()});
+   c2.fillStyle='#000';c2.beginPath();c2.arc(W/2,cy,Math.min(W,H)*.04,0,7);c2.fill()}c2.globalAlpha=1}
+ function loop(now){requestAnimationFrame(loop);if(document.hidden)return;if(now-lastF<(mob?33:16))return;lastF=now;try{if(document.body.classList.contains('fpo')||S.rsvp)tick(now);draw(now)}catch(e){console.warn('RSVP/visual frame:',e)}}
+ // theremin: drag on the player background bends the waves and detunes the live tones a little (max ±40 cents); release settles back
+ const BEND={x:0,y:0,u:.5,on:false};window.LT_BEND=BEND;
+ function bendTo(x,y,u){BEND.x=x;BEND.y=y;BEND.u=u;if(!bed||!ctx)return;const c=x*40,T=ctx.currentTime;[bed.o[0],bed.o[1]].concat(bed.dv.map(d=>d.x)).forEach(o=>o.detune.setTargetAtTime(c,T,BEND.on?.05:.6));bed.lp.frequency.setTargetAtTime(1400*(1-y*.4),T,BEND.on?.05:.6)}
+ const isBg=e=>e.target===fp||e.target.id=='rsvp'||e.target.id=='rsvpI'||e.target.id=='fpTxt';
+ fp.addEventListener('pointerdown',e=>{if(!isBg(e))return;BEND.on=true;mv(e)});const mv=e=>{if(!BEND.on)return;bendTo((e.clientX/innerWidth-.5)*2,(e.clientY/innerHeight-.5)*2,e.clientX/innerWidth)};
+ fp.addEventListener('pointermove',mv);['pointerup','pointercancel','pointerleave'].forEach(n=>fp.addEventListener(n,()=>{if(!BEND.on)return;BEND.on=false;bendTo(0,0,BEND.u)}));
+ setInterval(()=>{if(!BEND.on&&(Math.abs(BEND.x)>.001||Math.abs(BEND.y)>.001)){BEND.x*=.85;BEND.y*=.85}},50);
+ rsvpApply();requestAnimationFrame(loop);
+})();
 </script>
 </body></html>
