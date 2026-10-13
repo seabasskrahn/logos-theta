@@ -127,7 +127,7 @@ const grkNorm=w=>w.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const hebCons=w=>w.replace(/[^\u05D0-\u05EA]/g,'');
 // ---- The Eye (build 2026101215, Matthew 6:22): one centre F0 (pupil); word = just ratio x octave (iris); companions = two
 // partials snapped to consonances (lids). See SONOLUMINA_ALGORITHM.md. Entry: [step,octave,c1,c2,count,first].
-let F0=110;const BASEF=()=>S.base&&S.baseHz?S.baseHz/TUNE():110,JUST=[1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8],JUSTS=['1/1','16/15','9/8','6/5','5/4','4/3','45/32','3/2','8/5','5/3','9/5','15/8'],CONS=[1,5/4,4/3,3/2,2];
+let F0=110;const isLive=()=>S.mode=='live',BASEF=()=>isLive()&&S.base&&S.baseHz?S.baseHz/TUNE():110,JUST=[1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8],JUSTS=['1/1','16/15','9/8','6/5','5/4','4/3','45/32','3/2','8/5','5/3','9/5','15/8'],CONS=[1,5/4,4/3,3/2,2];
 const consSnap=r=>{let o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let bi=0;CONS.forEach((c,i)=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/CONS[bi])))bi=i});return CONS[bi]*o};
 // instruments: book genre -> harmonic recipe for the word-tone waveform
 const GENRES=[['Law',[1,.5,.25,.12]],['History',[1,0,.11,0,.04]],['Poetry/Wisdom',[1,.18]],['Prophets',[1,.55,.38,.26,.18,.12]],['Gospels',[1]],['Epistles',[1,0,.33,0,.18,0,.08]],['Apocalyptic',[1,.25,0,.4,0,.3,0,.2]]];
@@ -546,7 +546,7 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG,dv};bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
-setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16*(window.ROOM&&ROOM.on?ROOM.g:1):0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
+setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16*(window.ROOM&&ROOM.on&&isLive()?ROOM.g:1):0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
 function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.currentTime,TU=TUNE(),vs=verseSig(orig||eng,g),f0=bed.o[0].frequency;
  // verse drone: the pupil F0 (+ sub-octave) plus the verse's 3 rarest lemmas, each pulled to the nearest consonance of F0
@@ -566,7 +566,7 @@ function cbWordsPlay(ws,dur,audio){window.cbPrev=BASEF()*TUNE();const tok=++cbTo
   if(!audio||!x.key)continue;cbTone(x,t,Math.min(step*.9,1.2))}}
 function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===false?'none':'';if(!x){e.textContent='';return}
  const pl=x.place?` · 📍 ${x.place.name.replace(/ \d+$/,"")}${x.place.modern&&x.place.modern!=x.place.name?' ('+x.place.modern+')':''}`:'';
- e.textContent=(x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.ratio}${x.oct?' ×'+(1<<x.oct):''} · ${Math.round(x.hz[0]*TUNE())} Hz · ${x.n}× · first ${gRef(x.first)} · ${GENRES[genreOf(curBook())][0]}`:`Now decoding: ${x.w} · (not in codebook, rest)`)+pl}
+ e.textContent=(x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.ratio}${x.oct?' ×'+(1<<x.oct):''} · ${Math.round(x.hz[0]*TUNE())} Hz${isLive()?' (live '+Math.round(x.hz[0]*TUNE()*Math.pow(2,((window.ROOM&&ROOM.on?ROOM.c:0)+(window.LT_BEND&&LT_BEND.on?LT_BEND.x*40:0))/1200))+' Hz)':''} · base ${Math.round(BASEF()*TUNE())} Hz · ${x.n}× · first ${gRef(x.first)} · ${GENRES[genreOf(curBook())][0]}`:`Now decoding: ${x.w} · (not in codebook, rest)`)+pl}
 // cross-reference meeting (The Eye): both verses' tones share the F0 pupil. The current verse's key tones leave from one side
 // while the cross reference's key tones swell in from the opposite side (left = earlier in the Bible, right = later), mirrored
 // envelopes crossing at the centre. Bidirectional: the same pair heard from the other verse mirrors the sides.
@@ -841,10 +841,11 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'s777',l:'777 Hz bright tone',d:'Soft steady layer; a symbolic choice.',t:'chk',g:()=>S.s777!==false,s:v=>ctl(s777,v,'change')},
   {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
   {k:'decode',l:'Show "Now decoding" line',d:'In the full player: the current word, its lemma, how often it occurs, its first mention, and its tone.',t:'chk',g:()=>S.decode!==false,s:v=>{S.decode=v;persist();cbShow(null)}},
-  {k:'room',l:'Room listening',d:'Off by default. Uses the microphone only to sense audible sound in the room (hum, fans, voices) and nudge the tones (at most a quarter-tone) toward calm intervals with it, and the level with room loudness. Nothing is recorded, stored or uploaded; analysis happens in memory and stops when you turn it off or leave the page.',t:'chk',g:()=>!!S.room,s:v=>{S.room=v;persist();v?roomStart():roomStop()}},
-  {k:'base',l:'Your baseline',d:'Off by default. Replaces the 110 Hz centre with your own base note; every word ratio scales from it. It tunes to the note you hum or pick; it cannot read frequencies in your mind or body. Humming uses the microphone for 3 seconds of pitch analysis in memory only: nothing is recorded or uploaded.',t:'chk',g:()=>!!S.base,s:v=>{S.base=v;if(!S.baseHz)S.baseHz=110;persist();baseApply()}},
-  {k:'hum',l:'Hum to set',d:'Hum a steady comfortable note for 3 seconds.',t:'btn',b:'🎙 Hum',s:()=>humSet()},
-  {k:'baseHz',l:'Base note',d:'55-440 Hz.',t:'range',min:55,max:440,step:1,g:()=>S.baseHz||110,s:v=>{S.baseHz=+v;persist();baseApply()},f:x=>Math.round(x)+' Hz · '+noteName(+x)},
+  {k:'mode',l:'Tone mode',d:'Word: the pure codebook tones from the text on the 110 Hz centre (432-scaled if that toggle is on), no live modifiers. Live: the same tones with Room listening and Your baseline applied.',t:'sel',o:()=>[['word','Word (default)'],['live','Live']],g:()=>S.mode||'word',s:v=>setMode(v)},
+  {k:'room',show:()=>S.mode=='live',l:'Room listening',d:'Off by default. Uses the microphone only to sense audible sound in the room (hum, fans, voices) and nudge the tones (at most a quarter-tone) toward calm intervals with it, and the level with room loudness. Nothing is recorded, stored or uploaded; analysis happens in memory and stops when you turn it off or leave the page.',t:'chk',g:()=>!!S.room,s:v=>{S.room=v;persist();v?roomStart():roomStop()}},
+  {k:'base',show:()=>S.mode=='live',l:'Your baseline',d:'Off by default. Replaces the 110 Hz centre with your own base note; every word ratio scales from it. It tunes to the note you hum or pick; it cannot read frequencies in your mind or body. Humming uses the microphone for 3 seconds of pitch analysis in memory only: nothing is recorded or uploaded.',t:'chk',g:()=>!!S.base,s:v=>{S.base=v;if(!S.baseHz)S.baseHz=110;persist();baseApply()}},
+  {k:'hum',show:()=>S.mode=='live',l:'Hum to set',d:'Hum a steady comfortable note for 3 seconds.',t:'btn',b:'🎙 Hum',s:()=>humSet()},
+  {k:'baseHz',show:()=>S.mode=='live',l:'Base note',d:'55-440 Hz.',t:'range',min:55,max:440,step:1,g:()=>S.baseHz||110,s:v=>{S.baseHz=+v;persist();baseApply()},f:x=>Math.round(x)+' Hz · '+noteName(+x)},
   {k:'glide',l:'Glide amount',d:'Each word slides in from the previous pitch (from your base at a verse start) over 80-200 ms, faster at higher speeds, with a soft swell. 0 = no glide.',t:'range',min:0,max:1,step:.05,g:()=>+S.glide||0,s:v=>{S.glide=+v;persist()},f:x=>Math.round(x*100)+'%'},
   {k:'echo',l:'Cross-reference echoes',d:'Soft panned motifs for real OpenBible cross references.',t:'chk',g:()=>S.echo,s:v=>{S.echo=v;persist()}},
   {k:'echoVol',l:'Echo volume',d:'Loudness of the echo motifs.',t:'range',min:0,max:2,step:.1,g:()=>S.echoVol,s:v=>{S.echoVol=+v;persist()},f:x=>Math.round(x*100)+'%'}]],
@@ -884,7 +885,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  let page=null;
  window.openSettings=function(){page=null;ltSetQ.value='';ltSet.classList.add('on');setDraw()};window.closeSettings=()=>ltSet.classList.remove('on');
  window.setBack=()=>{if(page!=null||ltSetQ.value){page=null;ltSetQ.value='';setDraw()}else closeSettings()};window.setOpen=i=>{page=i;ltSetQ.value='';setDraw();ltSetB.scrollTop=0};
- const row=(it,ci,ii)=>{const id=`ss_${it.k}`,v=it.g?it.g():null,d=it.d?`<small>${it.d}</small>`:'';
+ const row=(it,ci,ii)=>{if(it.show&&!it.show())return'';const id=`ss_${it.k}`,v=it.g?it.g():null,d=it.d?`<small>${it.d}</small>`:'';
   if(it.t=='note')return`<div class="si"><div class="l"><span>${it.l}</span></div><div class="note">${typeof it.h=='function'?it.h():it.h}</div></div>`;
   let c='';if(it.t=='chk')c=`<input type="checkbox" id="${id}" ${v?'checked':''}>`;if(it.t=='btn')c=`<button id="${id}">${it.b}</button>`;
   if(it.t=='sel')c=`<select id="${id}">${it.o().map(([a,b])=>`<option value="${esc(a)}" ${String(a)==String(v)?'selected':''}>${esc(b)}</option>`).join('')}</select>`;
@@ -983,7 +984,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
 // ---- Room listening (build 2026101216): mic -> AnalyserNode only (never connected to output, never recorded or sent)
 (function(){const ROOM=window.ROOM={on:false,c:0,g:1,peak:0,db:-100,fd:null};let st=null,src=null,an=null,tm=null,buf=null;
  document.body.insertAdjacentHTML('beforeend','<div id="roomI" style="position:fixed;top:calc(6px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:40;background:#3a1c1c;color:#f4c9c9;font-size:11px;padding:2px 9px;border-radius:10px;display:none">🎙 room listening</div>');
- window.roomStart=async function(){if(ROOM.on||document.hidden)return;if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){notice('Microphone is not available in this browser.');return}ensureCtx();
+ window.roomStart=async function(){if(ROOM.on||document.hidden||!isLive())return;if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){notice('Microphone is not available in this browser.');return}ensureCtx();
   try{st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})}catch(e){console.warn('Room listening: mic not allowed',e);S.room=false;persist();notice('Room listening needs microphone permission; it stays off.');return}
   if(!S.room||document.hidden){st.getTracks().forEach(t=>t.stop());st=null;return}
   src=ctx.createMediaStreamSource(st);an=ctx.createAnalyser();an.fftSize=8192;an.smoothingTimeConstant=.85;src.connect(an);buf=new Float32Array(an.frequencyBinCount);ROOM.fd=new Uint8Array(an.frequencyBinCount);ROOM.on=true;roomI.style.display='';tm=setInterval(step,500)};
@@ -995,7 +996,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
    target=Math.max(-50,Math.min(50,1200*Math.log2(r/best)))}else ROOM.peak=0;
   ROOM.c+=(target-ROOM.c)*.15;  // slow glide (plus a 3 s audio-rate smoothing below): never warbles
   ROOM.g+=((Math.max(.8,Math.min(1.25,1+(avg+70)/80)))-ROOM.g)*.1;apply()}
- document.addEventListener('visibilitychange',()=>{if(document.hidden){if(ROOM.on)roomStop()}else if(S.room)roomStart()});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(ROOM.on)roomStop()}else if(S.room&&isLive())roomStart()});
  if(S.room)S.room=false;  // never auto-open the mic on load; the user turns it on each session
 })();
 
@@ -1012,5 +1013,10 @@ window.humSet=async function(){if(!navigator.mediaDevices||!navigator.mediaDevic
  src.disconnect();st.getTracks().forEach(t=>t.stop());if(ps.length<5)return notice('No steady hum heard; try again a little louder, or use the slider.');
  ps.sort((a,b)=>a-b);S.baseHz=Math.round(ps[ps.length>>1]*10)/10;S.base=true;persist();baseApply();notice('Your base note: '+Math.round(S.baseHz)+' Hz ('+noteName(S.baseHz)+').')};
 baseApply();
+
+// ---- Tone mode switch (build 2026101216): Word (default, pure codebook) / Live (Room listening + Your baseline as modifiers)
+window.setMode=function(v){S.mode=v=='live'?'live':'word';persist();if(S.mode=='word'){if(window.ROOM&&ROOM.on)roomStop()}else if(S.room)roomStart();baseApply();modeChip();try{if(ltSet.classList.contains('on'))setDraw()}catch(e){}};
+function modeChip(){const b=$('modeB');if(b){b.textContent=isLive()?'🎚 Live':'📖 Word';b.classList.toggle('on',isLive())}}
+document.querySelector('.rsb').insertAdjacentHTML('beforeend','<button id="modeB" onclick="setMode(isLive()?\'word\':\'live\')" title="Tone mode: Word (pure) or Live (room + your baseline)"></button>');modeChip();
 </script>
 </body></html>
