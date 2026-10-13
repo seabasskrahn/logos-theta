@@ -87,7 +87,7 @@ button{touch-action:manipulation}select,input,textarea{font:inherit;background:#
  <button onclick="nightOn()">🌙 Night mode</button><button onclick="prayOn()">🙏 Pray mode</button></div>
  <div class="row"><label><input type="checkbox" id="autoP"> Auto play (continue through the Bible)</label><label><input type="checkbox" id="thread"> Follow the thread (hop to the strongest unvisited cross-reference)</label><label><input type="checkbox" id="narr"> KJV narration (speech)</label><select id="voice"></select></div>
  <div class="dim" id="bl1"></div><div class="dim">Narration uses your device's speechSynthesis voice; it is not included in the saved WAV.</div><div class="dim">Use headphones for the binaural layer. Output is capped at half volume.</div></div></div>
-<script src="engine.js?v=2026101301"></script>
+<script src="engine.js?v=2026101302"></script>
 <script>
 // ---- native bridge (APK only): when running in the Capacitor app, speechSynthesis is backed by native Android TTS so it keeps going in the background
 window.LT_NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());window.LT_VMAX=window.LT_NATIVE?4:3;
@@ -131,7 +131,7 @@ const hebCons=w=>w.replace(/[^\u05D0-\u05EA]/g,'');
 let F0=110;const isLive=()=>S.mode=='live',BASEF=()=>isLive()&&S.base&&S.baseHz?S.baseHz/TUNE():110,SOLF=[174,285,396,417,528,639,741,852,963],solfOn=()=>isLive()&&!!S.solf,
  solfF=f=>{if(!solfOn()||!f)return f;let b=f,bd=1e9;for(const s0 of SOLF){let q=s0;while(q>f*1.4142)q/=2;while(q<f/1.4142)q*=2;const d=Math.abs(Math.log(q/f));if(d<bd){bd=d;b=q}}return f*Math.pow(b/f,S.solfK==null?.5:+S.solfK)},
  padBase=()=>{if(solfOn()&&S.solfA){let a=+S.solfA;const c=F0*TUNE();while(a>c*1.4142)a/=2;while(a<c/1.4142)a*=2;return a/TUNE()}return F0},JUST=SonoEngine.J,JUSTS=SonoEngine.JS,CONS=SonoEngine.CB_CONS;   // tone math lives in engine.js
-const consSnap=SonoEngine.consSnap;
+const consSnap=SonoEngine.companion; // Law: companion set {1,3/2,4/3,5/4,6/5}
 // instruments: book genre -> harmonic recipe for the word-tone waveform
 const GENRES=[['Law',[1,.28,.1]],['History',[1,.15,.05]],['Poetry/Wisdom',[1,.1]],['Prophets',[1,.22,.1,.05]],['Gospels',[1]],['Epistles',[1,0,.12,0,.05]],['Apocalyptic',[1,0,.18,0,.08]]];
 const genreOf=b=>{const i=META.findIndex(m=>m[0]==b);return i<0?4:i<5?0:i<17?1:i<22?2:i==65?6:i<39?3:i<43?4:i==43?1:5};
@@ -530,7 +530,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101223',BUILD_LABEL='build Live · 2026101223';
+const BUILD='2026101302',BUILD_LABEL='build Live · 2026101302';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -1257,7 +1257,8 @@ try{const r=JSON.parse(localStorage.getItem('ltThanksResume')||'null');if(r&&r.p
 
 // ---- E(v,t): per-verse emotion (NRC VAD Lexicon aggregates, tools/build_vad.py -> vad/*.json, 2-digit percentiles per dimension)
 const VADC={};function vadLoad(b){if(VADC[b])return Promise.resolve(VADC[b]);if(!MB[b])return Promise.resolve(null);return cachedJSON('vad/'+MB[b][1]+'?v=2026101221','lt-vad-v1').then(o=>VADC[b]=o).catch(e=>{console.warn('VAD '+b+' unavailable',e);return null})}
-function verseE(p){try{const s=VADC[p.b][p.c-1],x=s.slice((p.v-1)*6,(p.v-1)*6+6);if(x.length<6)throw 0;return{v:+x.slice(0,2)/99,a:+x.slice(2,4)/99,d:+x.slice(4,6)/99}}catch(e){return{v:.5,a:.5,d:.5}}}
+let _eP=null,_eK='';function verseE(p){const E=verseE0(p),ck=p.b+'|'+p.c,vk=ck+'|'+p.v;if(_eK===vk)return _eP.s;const prev=(_eP&&_eP.ck===ck)?_eP.s:null,sm=SonoEngine.smooth(E,prev,0.5);_eP={ck,s:sm};_eK=vk;return sm}
+function verseE0(p){try{const s=VADC[p.b][p.c-1],x=s.slice((p.v-1)*6,(p.v-1)*6+6);if(x.length<6)throw 0;return{v:+x.slice(0,2)/99,a:+x.slice(2,4)/99,d:+x.slice(4,6)/99}}catch(e){return{v:.5,a:.5,d:.5}}}
 function emoLabel(E){return(E.v>.7?'joy':E.v>.5?'peace':E.v>.32?'longing':'sorrow')+' · '+(E.a>.62?'stirring':E.a>.38?'moving':'still')+' · '+(E.d>.65?'majestic':E.d>.38?'steady':'humble')}
 </script>
 </body></html>
