@@ -546,7 +546,7 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG,dv};bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
-setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16:0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
+setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16*(window.ROOM&&ROOM.on?ROOM.g:1):0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
 function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.currentTime,TU=TUNE(),vs=verseSig(orig||eng,g),f0=bed.o[0].frequency;
  // verse drone: the pupil F0 (+ sub-octave) plus the verse's 3 rarest lemmas, each pulled to the nearest consonance of F0
@@ -558,7 +558,7 @@ function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.curr
  const ls=w[2]+w[3];bed.lfo.frequency.setTargetAtTime(ls>.5?40:7.83,T,3);bed.lfoG.gain.setTargetAtTime(ls>.5?.04:.08,T,3)}
 const gIdx=(bi,c,v)=>bi*1e6+c*1e3+v;
 // one signature note per word, spread across the verse's narration; ramped in/out (no clicks); 'Now decoding' line follows
-function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU=TUNE(),pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;if(pw&&!j)o.setPeriodicWave(pw);
+function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU=TUNE(),pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;if(window.ROOM&&ROOM.on)o.detune.value=ROOM.c;if(pw&&!j)o.setPeriodicWave(pw);
    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.05);g.gain.setValueAtTime(a,t+len*.5);g.gain.linearRampToValueAtTime(0,t+len);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+len+.05);o.onended=()=>{o.disconnect();g.disconnect()}})}
 let cbCurWs=[],cbAudio=false;
 function cbWordsPlay(ws,dur,audio){const tok=++cbTok,n=Math.min(ws.length,120);cbCurWs=ws;cbAudio=audio;if(!n){cbShow(null);return}if(window.rsvpDrives&&rsvpDrives())return;const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05;
@@ -841,6 +841,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'s777',l:'777 Hz bright tone',d:'Soft steady layer; a symbolic choice.',t:'chk',g:()=>S.s777!==false,s:v=>ctl(s777,v,'change')},
   {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
   {k:'decode',l:'Show "Now decoding" line',d:'In the full player: the current word, its lemma, how often it occurs, its first mention, and its tone.',t:'chk',g:()=>S.decode!==false,s:v=>{S.decode=v;persist();cbShow(null)}},
+  {k:'room',l:'Room listening',d:'Off by default. Uses the microphone only to sense audible sound in the room (hum, fans, voices) and nudge the tones (at most a quarter-tone) toward calm intervals with it, and the level with room loudness. Nothing is recorded, stored or uploaded; analysis happens in memory and stops when you turn it off or leave the page.',t:'chk',g:()=>!!S.room,s:v=>{S.room=v;persist();v?roomStart():roomStop()}},
   {k:'echo',l:'Cross-reference echoes',d:'Soft panned motifs for real OpenBible cross references.',t:'chk',g:()=>S.echo,s:v=>{S.echo=v;persist()}},
   {k:'echoVol',l:'Echo volume',d:'Loudness of the echo motifs.',t:'range',min:0,max:2,step:.1,g:()=>S.echoVol,s:v=>{S.echoVol=+v;persist()},f:x=>Math.round(x*100)+'%'}]],
  ['bg','📱','Background and lock screen','Keep playing, lock-screen controls, screen awake',[
@@ -953,7 +954,8 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   if(an){an.getByteFrequencyData(fd);an.getByteTimeDomainData(td)}const lvl=fd?fd.slice(0,64).reduce((a,x)=>a+x,0)/64/255:0,T=now/1000;c2.globalAlpha=.55;
   if(st=='spec'){const n=48;for(let i=0;i<n;i++){const v=fd?fd[Math.floor(Math.pow(i/n,1.6)*fd.length*.5)]/255:.05,h=v*H*.6,x=i*W/n;c2.fillStyle=`hsl(${40+i*4},70%,${35+v*30}%)`;c2.fillRect(x+1,H-h,W/n-2,h);c2.fillRect(x+1,0,W/n-2,h*.3)}}
   else if(st=='stars'){if(!stars)stars=[...Array(mob?90:180)].map(()=>[Math.random()*2-1,Math.random()*2-1,Math.random()]);c2.fillStyle='#e8e0ff';stars.forEach(s=>{s[2]-=.004+lvl*.03;if(s[2]<=.02){s[0]=Math.random()*2-1;s[1]=Math.random()*2-1;s[2]=1}const x=W/2+s[0]/s[2]*W*.3,y=H/2+s[1]/s[2]*H*.3,r=(1-s[2])*3;c2.fillRect(x,y,r,r)})}
-  else{const cy=H/2+BEND.y*H*.15,amp=H*(.06+lvl*.25)*(1+Math.abs(BEND.x)*.6),tn=window.LT_TONE,age=tn?(now-tn.t)/1000:9,pulse=Math.max(0,1-age/1.2),
+  else{if(window.ROOM&&ROOM.on&&ROOM.fd){const R0=Math.min(W,H)*.34,n=96;c2.strokeStyle='rgba(160,200,180,.22)';c2.lineWidth=1.5;c2.beginPath();for(let i=0;i<=n;i++){const v=ROOM.fd[Math.floor(Math.pow((i%n)/n,1.5)*ROOM.fd.length*.4)]/255,a=i/n*Math.PI*2,r=R0*(1+v*.35);const x=W/2+r*Math.cos(a),y=H/2+r*Math.sin(a);i?c2.lineTo(x,y):c2.moveTo(x,y)}c2.stroke()}
+   const cy=H/2+BEND.y*H*.15,amp=H*(.06+lvl*.25)*(1+Math.abs(BEND.x)*.6),tn=window.LT_TONE,age=tn?(now-tn.t)/1000:9,pulse=Math.max(0,1-age/1.2),
     kf=tn?2+Math.log2(tn.hz/110)*3:3,parts=tn&&tn.p?tn.p.slice(1).map(f=>f/tn.hz):[],bx=BEND.x;
    const wave=(col,sg,u0,u1,a2,ph)=>{c2.strokeStyle=col;c2.lineWidth=2;c2.beginPath();let first=1;for(let x=u0*W;x<=u1*W;x+=6){const u=x/W,env=Math.sin(Math.PI*u),k=td?(td[Math.floor(u*(td.length-1))]-128)/128:0;
      let y=Math.sin(u*Math.PI*kf+sg*T*1.3+ph+bx*3*(u-.5))*Math.cos(T*.7);parts.forEach((r,j)=>y+=.25*pulse*Math.sin(u*Math.PI*kf*r*2+T*(2+j)));
@@ -966,12 +968,31 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  function loop(now){requestAnimationFrame(loop);if(document.hidden)return;if(now-lastF<(mob?33:16))return;lastF=now;try{if(document.body.classList.contains('fpo')||S.rsvp)tick(now);draw(now)}catch(e){console.warn('RSVP/visual frame:',e)}}
  // theremin: drag on the player background bends the waves and detunes the live tones a little (max ±40 cents); release settles back
  const BEND={x:0,y:0,u:.5,on:false};window.LT_BEND=BEND;
- function bendTo(x,y,u){BEND.x=x;BEND.y=y;BEND.u=u;if(!bed||!ctx)return;const c=x*40,T=ctx.currentTime;[bed.o[0],bed.o[1]].concat(bed.dv.map(d=>d.x)).forEach(o=>o.detune.setTargetAtTime(c,T,BEND.on?.05:.6));bed.lp.frequency.setTargetAtTime(1400*(1-y*.4),T,BEND.on?.05:.6)}
+ function bendTo(x,y,u){BEND.x=x;BEND.y=y;BEND.u=u;if(!bed||!ctx)return;const c=x*40+(window.ROOM&&ROOM.on?ROOM.c:0),T=ctx.currentTime;[bed.o[0],bed.o[1]].concat(bed.dv.map(d=>d.x)).forEach(o=>o.detune.setTargetAtTime(c,T,BEND.on?.05:.6));bed.lp.frequency.setTargetAtTime(1400*(1-y*.4),T,BEND.on?.05:.6)}
  const isBg=e=>e.target===fp||e.target.id=='rsvp'||e.target.id=='rsvpI'||e.target.id=='fpTxt';
  fp.addEventListener('pointerdown',e=>{if(!isBg(e))return;BEND.on=true;mv(e)});const mv=e=>{if(!BEND.on)return;bendTo((e.clientX/innerWidth-.5)*2,(e.clientY/innerHeight-.5)*2,e.clientX/innerWidth)};
  fp.addEventListener('pointermove',mv);['pointerup','pointercancel','pointerleave'].forEach(n=>fp.addEventListener(n,()=>{if(!BEND.on)return;BEND.on=false;bendTo(0,0,BEND.u)}));
  setInterval(()=>{if(!BEND.on&&(Math.abs(BEND.x)>.001||Math.abs(BEND.y)>.001)){BEND.x*=.85;BEND.y*=.85}},50);
  rsvpApply();requestAnimationFrame(loop);
+})();
+
+// ---- Room listening (build 2026101216): mic -> AnalyserNode only (never connected to output, never recorded or sent)
+(function(){const ROOM=window.ROOM={on:false,c:0,g:1,peak:0,db:-100,fd:null};let st=null,src=null,an=null,tm=null,buf=null;
+ document.body.insertAdjacentHTML('beforeend','<div id="roomI" style="position:fixed;top:calc(6px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:40;background:#3a1c1c;color:#f4c9c9;font-size:11px;padding:2px 9px;border-radius:10px;display:none">🎙 room listening</div>');
+ window.roomStart=async function(){if(ROOM.on||document.hidden)return;if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){notice('Microphone is not available in this browser.');return}ensureCtx();
+  try{st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})}catch(e){console.warn('Room listening: mic not allowed',e);S.room=false;persist();notice('Room listening needs microphone permission; it stays off.');return}
+  if(!S.room||document.hidden){st.getTracks().forEach(t=>t.stop());st=null;return}
+  src=ctx.createMediaStreamSource(st);an=ctx.createAnalyser();an.fftSize=8192;an.smoothingTimeConstant=.85;src.connect(an);buf=new Float32Array(an.frequencyBinCount);ROOM.fd=new Uint8Array(an.frequencyBinCount);ROOM.on=true;roomI.style.display='';tm=setInterval(step,500)};
+ window.roomStop=function(){clearInterval(tm);tm=null;try{src&&src.disconnect()}catch(e){}src=null;an=null;if(st)st.getTracks().forEach(t=>t.stop());st=null;ROOM.on=false;ROOM.fd=null;ROOM.c=0;ROOM.g=1;roomI.style.display='none';apply()};
+ function apply(){if(!window.bed||!ctx)return;const T=ctx.currentTime,b=window.LT_BEND,c=ROOM.c+(b&&b.on?b.x*40:0);[bed.o[0],bed.o[1]].concat(bed.dv.map(d=>d.x)).forEach(o=>o.detune.setTargetAtTime(c,T,3))}
+ function step(){if(!an)return;an.getFloatFrequencyData(buf);an.getByteFrequencyData(ROOM.fd);const hz=ctx.sampleRate/an.fftSize;let pk=-1,pv=-1e9,sum=0,n=0;
+  for(let i=Math.ceil(40/hz);i<Math.min(buf.length,2000/hz);i++){const v=buf[i];if(v>pv){pv=v;pk=i}sum+=Math.pow(10,v/10);n++}const avg=10*Math.log10(sum/n||1e-12);ROOM.db=avg;
+  let target=0;if(pk>0&&pv-avg>12){const f=pk*hz,F=F0*TUNE();ROOM.peak=f;let r=f/F;while(r>=2)r/=2;while(r<1)r*=2;let best=1;CONS.concat([2]).forEach(c=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/best)))best=c});
+   target=Math.max(-50,Math.min(50,1200*Math.log2(r/best)))}else ROOM.peak=0;
+  ROOM.c+=(target-ROOM.c)*.15;  // slow glide (plus a 3 s audio-rate smoothing below): never warbles
+  ROOM.g+=((Math.max(.8,Math.min(1.25,1+(avg+70)/80)))-ROOM.g)*.1;apply()}
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(ROOM.on)roomStop()}else if(S.room)roomStart()});
+ if(S.room)S.room=false;  // never auto-open the mic on load; the user turns it on each session
 })();
 </script>
 </body></html>
