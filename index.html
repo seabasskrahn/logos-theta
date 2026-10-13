@@ -87,7 +87,7 @@ button{touch-action:manipulation}select,input,textarea{font:inherit;background:#
  <button onclick="nightOn()">🌙 Night mode</button><button onclick="prayOn()">🙏 Pray mode</button></div>
  <div class="row"><label><input type="checkbox" id="autoP"> Auto play (continue through the Bible)</label><label><input type="checkbox" id="thread"> Follow the thread (hop to the strongest unvisited cross-reference)</label><label><input type="checkbox" id="narr"> KJV narration (speech)</label><select id="voice"></select></div>
  <div class="dim" id="bl1"></div><div class="dim">Narration uses your device's speechSynthesis voice; it is not included in the saved WAV.</div><div class="dim">Use headphones for the binaural layer. Output is capped at half volume.</div></div></div>
-<script src="engine.js?v=2026101302"></script>
+<script src="engine.js?v=2026101303"></script>
 <script>
 // ---- native bridge (APK only): when running in the Capacitor app, speechSynthesis is backed by native Android TTS so it keeps going in the background
 window.LT_NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());window.LT_VMAX=window.LT_NATIVE?4:3;
@@ -211,8 +211,8 @@ const fmt=s=>{s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%6
 // Web Audio is routed through a MediaStream into an <audio> element so Android Chrome treats it as media playback and keeps it going when the screen locks
 let bgA=null;
 function ensureCtx(){if(!gain){if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();
-  const comp=ctx.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=12;comp.ratio.value=3;comp.attack.value=.01;comp.release.value=.3;const lim=ctx.createDynamicsCompressor();lim.threshold.value=-3;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.1;gain.connect(comp).connect(lim);window.LT_MASTER=lim;
-  try{if(window.OfflineAudioContext&&ctx instanceof OfflineAudioContext)throw 0;const d=ctx.createMediaStreamDestination();bgA=new Audio();bgA.srcObject=d.stream;lim.connect(d)}catch(e){bgA=null;lim.connect(ctx.destination)}}
+  const comp=ctx.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=12;comp.ratio.value=3;comp.attack.value=.01;comp.release.value=.3;const lim=ctx.createDynamicsCompressor();lim.threshold.value=-3;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.1;gain.connect(comp).connect(lim);window.LT_MASTER=lim;const mv=ctx.createGain();mv.gain.value=(S.volMusic==null?1:+S.volMusic);window.LT_MV=mv;
+  try{if(window.OfflineAudioContext&&ctx instanceof OfflineAudioContext)throw 0;const d=ctx.createMediaStreamDestination();bgA=new Audio();bgA.srcObject=d.stream;lim.connect(mv).connect(d)}catch(e){bgA=null;lim.connect(mv).connect(ctx.destination)}}
  gain.gain.value=+S.vol;if(ctx.state!="running")ctx.resume().catch(()=>{});
  if(bgA&&bgA.paused)bgA.play().catch(()=>{if(bgA){bgA=null;gain.disconnect();gain.connect(ctx.destination)}})}
 document.addEventListener('pointerdown',()=>{if(ctx)ensureCtx()},true);
@@ -263,7 +263,7 @@ function testVoice(){if(!SS)return alert('Speech is not available in this browse
 if(SS){loadVoices();SS.addEventListener?SS.addEventListener('voiceschanged',loadVoices):SS.onvoiceschanged=loadVoices}
 // Chrome (esp. Android) cuts utterances off after ~15 s: speak long verses as short phrase chunks
 function sayParts(t){return(t.match(/[^.;:,!?]+[.;:,!?'"’”)]*\s*/g)||[t]).reduce((a,x)=>{if(a.length&&(a[a.length-1]+x).length<160)a[a.length-1]+=x;else a.push(x);return a},[]).flatMap(x=>x.length>200?x.match(/.{1,180}(\s|$)/g):[x])}
-function speakChunks(t,onDone){const ps=sayParts(t||' ');ps.forEach((p,j)=>{const u=new SpeechSynthesisUtterance(p);u.rate=vRate();const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;if(j==ps.length-1&&onDone)u.onend=onDone;SS.speak(u)})}
+function speakChunks(t,onDone){const ps=sayParts(t||' ');ps.forEach((p,j)=>{const u=new SpeechSynthesisUtterance(p);u.rate=vRate();const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;u.volume=(S.volVoice==null?1:+S.volVoice);if(j==ps.length-1&&onDone)u.onend=onDone;SS.speak(u)})}
 function spkStop(){if(SS)SS.cancel();spkIdx=-1;document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'))}
 function narrTick(){if(nmA)return;if(!SS||!rendered||!(S.narr||rendered.t.narrate)||!rendered.t.engParts)return;const p=pos()%(rendered.pass||1e9),m=rendered.marks;let i=0;while(i+1<m.length&&m[i+1]<=p)i++;
  if(i==spkIdx)return;SS.cancel();spkIdx=i;const k=rendered.t.keys[i],x=ALL[IDX[k]]||{},txt=rendered.t.engParts[i]||'';speakChunks(txt);document.querySelectorAll('.v.spk').forEach(e=>e.classList.remove('spk'));
@@ -530,7 +530,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101302',BUILD_LABEL='build Live · 2026101302';
+const BUILD='2026101303',BUILD_LABEL='build Live · 2026101303';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -725,7 +725,7 @@ function fpOpen(){document.body.classList.add('fpo');fpRender(1)}function fpClos
 let SP={ps:[],j:0,done:null,gen:0,txt:''};
 if(SS){const oc=SS.cancel.bind(SS);SS.cancel=function(){SP.gen++;oc()}}
 speakChunks=function(t,onDone){SS.cancel();SP={ps:sayParts(t||' '),j:0,done:onDone||null,gen:SP.gen,txt:t||''};spkNext(SP.gen)};
-function spkNext(g){if(g!=SP.gen)return;if(SP.j>=SP.ps.length){const d=SP.done;SP.done=null;fpHl();d&&d();return}const u=new SpeechSynthesisUtterance(SP.ps[SP.j]);u.rate=vRate();const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;
+function spkNext(g){if(g!=SP.gen)return;if(SP.j>=SP.ps.length){const d=SP.done;SP.done=null;fpHl();d&&d();return}const u=new SpeechSynthesisUtterance(SP.ps[SP.j]);u.rate=vRate();const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;u.volume=(S.volVoice==null?1:+S.volVoice);
  const nx=()=>{if(g!=SP.gen)return;SP.j++;spkNext(g)};u.onend=nx;u.onerror=e=>{if(e&&(e.error=='interrupted'||e.error=='canceled'))return;nx()};SS.speak(u);fpHl()}
 function respeak(){if(!SS||!SP.ps.length||SP.j>=SP.ps.length)return;const{ps,j,done,txt}=SP;SS.cancel();SP={ps,j,done,txt,gen:SP.gen};spkNext(SP.gen);
  if(nmA&&done){clearTimeout(nTimer);const w=ps.slice(j).join(' ').split(/\s+/).length,rt=vRate(),est=()=>{if(SS.speaking&&(!document.hidden||window.LT_NATIVE)){nTimer=setTimeout(est,1000);return}done()};nTimer=setTimeout(est,(w*.45/rt+2)*1000)}}
@@ -874,6 +874,8 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'s777',l:'777 Hz bright tone',d:'Soft steady layer; a symbolic choice.',t:'chk',g:()=>S.s777!==false,s:v=>ctl(s777,v,'change')},
   {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
   {k:'decode',l:'Show "Now decoding" line',d:'In the full player: the current word, its lemma, how often it occurs, its first mention, and its tone.',t:'chk',g:()=>S.decode!==false,s:v=>{S.decode=v;persist();cbShow(null)}},
+  {k:'vol_voice',l:'Voice volume',t:'range',min:0,max:1,step:.05,g:()=>S.volVoice==null?1:+S.volVoice,s:v=>{S.volVoice=+v;persist()},f:x=>Math.round(x*100)+'%'},
+  {k:'vol_music',l:'Background music volume',t:'range',min:0,max:1,step:.05,g:()=>S.volMusic==null?1:+S.volMusic,s:v=>{S.volMusic=+v;persist();if(window.LT_MV&&ctx)window.LT_MV.gain.setTargetAtTime(+v,ctx.currentTime,.03)},f:x=>Math.round(x*100)+'%'},
   {k:'mixh',l:'Mixer',t:'note',h:'Levels per section, balanced by perceived loudness at 100%. Bass: cello on the chord root (centre). Pad: strings (wide). Counter-melody: piano arpeggios (left; the rare-word line in Pure tones). Melody: celesta on key words (right). Theta: binaural layers and 777. Cross-refs: the meetings (from the sides).'},
   {k:'mix_bass',l:'Bass',t:'range',min:0,max:2,step:.05,g:()=>S.mix.bass==null?1:+S.mix.bass,s:v=>{S.mix.bass=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
   {k:'mix_pad',l:'Pad',t:'range',min:0,max:2,step:.05,g:()=>S.mix.pad==null?1:+S.mix.pad,s:v=>{S.mix.pad=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
