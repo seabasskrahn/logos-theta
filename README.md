@@ -1,3 +1,5 @@
+> **New agent? Read [HANDOFF.md](HANDOFF.md) first.** It is the single entry point with the full context. Details are in [docs/](docs/), and key choices are in [decisions.md](decisions.md).
+
 # Sonolumina (Logos Theta)
 
 Bible audio web app: scripture narration with a tone layer built from each word's own codebook (how the word is used in the Bible) and an emotion-driven score. Live at https://seabasskrahn.github.io/logos-theta/. Full algorithm: `SONOLUMINA_ALGORITHM.md` (design repo).
