@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Build the Sonolumina word codebook (codebook/*.json).
 
-Each LEMMA gets one fixed tone signature derived only from how the Bible itself
-uses the word (no letter values, no gematria):
-  register  <- concordance size (occurrences): common = low band, rare = high band
-  root      <- first mention (canonical position of first occurrence, as a percentile
-               among that language's lemmas) picks one of 4 steps within the band
-  partials  <- roots of the 2 lemmas it most often shares a verse with (content words)
-Signature entry: [root_idx, partial1_idx, partial2_idx, count, first_global_verse_idx]
-indices point into the app's HSET (harmonic set on the 100 Hz root, 10 notes).
-
+Algorithm "The Eye" (Matthew 6:22). Each LEMMA gets one fixed tone from how the Bible itself uses the word
+(no letter values, no gematria, no numerology); see /workspace/logos-theta/SONOLUMINA_ALGORITHM.md.
+Signature entry: [step, octave, c1, c2, count, first_global_verse_idx]
+  step: index into the 12-step just scale, golden-ratio spread of first-appearance rank
+  octave: 0/1/2 from occurrence count (>=200 / 20-199 / <20); app plays F0 * JUST[step] * 2**octave
+  c1, c2: index into CONS (1, 5/4, 4/3, 3/2, 2): top-2 verse companions snapped to a consonance of the word
+places.json: OpenBible.info Bible Geocoding Data (CC-BY 4.0), KJV place name -> [name, type, modern id, verses]
 Sources (fetch into SRC first):
   Hebrew: Open Scriptures Hebrew Bible (OSHB, WLC + Strong's lemmas), CC-BY 4.0
           git clone https://github.com/openscriptures/morphhb
@@ -19,7 +17,7 @@ Sources (fetch into SRC first):
   English: the app's own KJV files (kjv/*.json), public domain.
 Usage: python3 tools/build_codebook.py /path/to/src   (needs src/meta.json: [[book,[verse counts]],...])
 """
-import sys, os, re, json, unicodedata, glob
+import sys, os, re, json, unicodedata, glob, math
 from collections import Counter, defaultdict
 SRC = sys.argv[1] if len(sys.argv) > 1 else '/workspace/cbsrc'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,30 +53,41 @@ def eng_stem(w):  # same rules as engStem() in index.html
         if len(w) - len(suf) >= 3 and w.endswith(suf): return w[:-len(suf)]
     return w
 
+JUST = [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8]   # 12-step just scale (iris)
+CONS = [1, 5/4, 4/3, 3/2, 2]                                             # unison, major third, fourth, fifth, octave
+PHI = (1 + 5 ** 0.5) / 2
+def snap(ratio):
+    """index into CONS of the consonant interval nearest to ratio (folded into one octave)."""
+    while ratio >= 2: ratio /= 2
+    while ratio < 1: ratio *= 2
+    return min(range(len(CONS)), key=lambda i: (abs(math.log(ratio / CONS[i])), i))
+
 def signatures(verses):
-    """verses: list of (global_idx, [lemma,...]) -> {lemma: [root,p1,p2,count,first]}"""
-    cnt, first, co = Counter(), {}, defaultdict(Counter)
-    for g, ls in verses:
+    """The Eye. verses: canonical-order list of (global_idx, [lemma,...]) ->
+    {lemma: [step, octave, c1, c2, count, first_verse]}
+      step   = floor(12 * frac(rank * PHI)), rank = order of first appearance (0-based, token order)
+      octave = 0 if count>=200, 1 if 20..199, 2 if <20         freq = F0 * JUST[step] * 2**octave
+      c1,c2  = CONS index of the 2 most frequent verse companions' tones, snapped to the word's tone"""
+    cnt, first, rank, co = Counter(), {}, {}, defaultdict(Counter)
+    for g, ls in sorted(verses, key=lambda x: x[0]):   # stable: keeps token order inside a verse
         for l in ls:
             cnt[l] += 1
-            if l not in first or g < first[l]: first[l] = g
-    stop = {l for l, _ in cnt.most_common(40)}  # function words: excluded as partners
+            if l not in first: first[l] = g
+            if l not in rank: rank[l] = len(rank)
+    stop = {l for l, _ in cnt.most_common(40)}  # function words: excluded as companions
     for g, ls in verses:
-        u = [l for l in set(ls) if l not in stop]
-        for a in u:
+        al = set(ls); u = [l for l in al if l not in stop]
+        for a in al:
             for b in u:
                 if a != b: co[a][b] += 1
-    # first-mention percentile among this language's lemmas (earliest quarter -> step 0 ... latest -> 3)
-    order = sorted(cnt, key=lambda l: (first[l], l)); pct = {l: i / len(order) for i, l in enumerate(order)}
-    def root(l):
-        c = cnt[l]; band = 0 if c >= 200 else 1 if c >= 20 else 2
-        return band * 3 + min(3, int(pct[l] * 4))
+    step = {l: int(12 * ((rank[l] * PHI) % 1)) for l in cnt}
+    octv = {l: 0 if cnt[l] >= 200 else 1 if cnt[l] >= 20 else 2 for l in cnt}
+    rel = {l: JUST[step[l]] * 2 ** octv[l] for l in cnt}   # tone relative to F0
     out = {}
     for l in cnt:
-        r = root(l)
-        ps = [root(b) for b, _ in sorted(co[l].items(), key=lambda x: (-x[1], x[0]))[:2]]
-        ps = (ps + [r, r])[:2]
-        out[l] = [r, ps[0], ps[1], cnt[l], first[l]]
+        comp = [b for b, _ in sorted(co[l].items(), key=lambda x: (-x[1], x[0]))[:2]]
+        cs = [snap(rel[b] / rel[l]) for b in comp] + [0, 0]
+        out[l] = [step[l], octv[l], cs[0], cs[1], cnt[l], first[l]]
     return out
 
 def save(name, obj):
@@ -129,3 +138,24 @@ for b, cs in META:
             ev.append((gi(b, ci+1, vi+1), [s for s in map(eng_stem, t.split()) if s]))
 save('eng.json', {'lex': signatures(ev)})
 save('meta.json', {'total': TOTAL, 'credits': 'Hebrew lemmas: Open Scriptures Hebrew Bible (OSHB, WLC), CC-BY 4.0. Greek lemmas: MorphGNT SBLGNT, CC-BY-SA 3.0. English: KJV (public domain).'})
+
+# Places (OpenBible.info Bible Geocoding Data, ancient.jsonl, CC-BY 4.0): only places the KJV names, with their KJV verses
+pl = {}
+OS2 = {v: k for k, v in OSIS.items()}
+GNT = ['Matt','Mark','Luke','John','Acts','Rom','1Cor','2Cor','Gal','Eph','Phil','Col','1Thess','2Thess','1Tim','2Tim','Titus','Phlm','Heb','Jas','1Pet','2Pet','1John','2John','3John','Jude','Rev']
+OSB = {**{k: canon(v) for k, v in OSIS.items()}, **{o: names[39 + i] for i, o in enumerate(GNT)}}
+pf = os.path.join(SRC, 'ancient.jsonl')
+if os.path.exists(pf):
+    for line in open(pf, encoding='utf-8'):
+        d = json.loads(line); vs = []
+        for v in d.get('verses', []):
+            if 'kjv' not in v.get('translations', []): continue
+            b, c, n = v['osis'].split('.')[:3]
+            if b in OSB: vs.append(gi(OSB[b], int(c), int(n)))
+        if not vs: continue
+        ids = d.get('identifications') or [{}]
+        modern = re.sub(r'<[^>]+>', '', (ids[0].get('description') or ''))[:60]
+        typ = (d.get('types') or ['place'])[0]
+        nm = d['friendly_id']; key = re.sub(r'[^a-z]', '', nm.lower().split(' ')[0])
+        if key: pl.setdefault(key, []).append([nm, typ, modern, sorted(set(vs))])
+    save('places.json', pl)

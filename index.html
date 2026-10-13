@@ -120,17 +120,28 @@ const DRONES=[50,100,150];
 // signature [root,p1,p2,count,first]: register from concordance size (common=low), root step from first mention, 2 partials from
 // the roots of the lemmas it most often shares a verse with. Hebrew: OSHB Strong's (H####); Greek: MorphGNT SBLGNT lemma; English-only books: KJV stem.
 const CB={};let cbP=null,cbTok=0;
-function cbLoad(){return cbP||(cbP=Promise.all(['heb','grk','eng'].map(n=>cachedJSON('codebook/'+n+'.json?v=2026101214','lt-cb-v1').then(j=>{CB[n]=j}).catch(e=>console.warn('Codebook '+n+' failed to load:',e)))))}
+function cbLoad(){return cbP||(cbP=Promise.all(['heb','grk','eng','places'].map(n=>cachedJSON('codebook/'+n+'.json?v=2026101215','lt-cb-v2').then(j=>{CB[n]=j}).catch(e=>console.warn('Codebook '+n+' failed to load:',e)))))}
 const cbWords=t=>String(t||'').replace(/[\u05BE\u05C0\u05C3\u2010-\u2015\-]/g,' ').split(/\s+/).filter(x=>/[\u05D0-\u05EA\u0370-\u03FF\u1F00-\u1FFFA-Za-z]/.test(x));
 const engStem=w=>{w=w.toLowerCase().replace(/[^a-z]/g,'');for(const x of['eth','est','ing','ed','es','s'])if(w.length-x.length>=3&&w.endsWith(x))return w.slice(0,-x.length);return w};
 const grkNorm=w=>w.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/ς/g,'σ').replace(/[^α-ω]/g,'');
 const hebCons=w=>w.replace(/[^\u05D0-\u05EA]/g,'');
-function cbLook(raw){let k,d,lang,w=raw;const h=hebCons(raw),g=h?'':grkNorm(raw);
- if(h){lang='heb';d=CB.heb;w=h;k=d&&d.forms[h]}else if(g){lang='grk';d=CB.grk;k=d&&d.forms[g];w=raw.replace(/[^\u0370-\u03FF\u1F00-\u1FFF]/g,'')}else{lang='eng';d=CB.eng;k=engStem(raw);w=raw.replace(/[^A-Za-z']/g,'')}
- const x=d&&k&&d.lex[k];return x?{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[3],first:x[4],hz:[HSET[x[0]],HSET[x[1]],HSET[x[2]]]}:{w,lang,key:null}}
+// ---- The Eye (build 2026101215, Matthew 6:22): one centre F0 (pupil); word = just ratio x octave (iris); companions = two
+// partials snapped to consonances (lids). See SONOLUMINA_ALGORITHM.md. Entry: [step,octave,c1,c2,count,first].
+const F0=110,JUST=[1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8],JUSTS=['1/1','16/15','9/8','6/5','5/4','4/3','45/32','3/2','8/5','5/3','9/5','15/8'],CONS=[1,5/4,4/3,3/2,2];
+const consSnap=r=>{let o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let bi=0;CONS.forEach((c,i)=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/CONS[bi])))bi=i});return CONS[bi]*o};
+// instruments: book genre -> harmonic recipe for the word-tone waveform
+const GENRES=[['Law',[1,.5,.25,.12]],['History',[1,0,.11,0,.04]],['Poetry/Wisdom',[1,.18]],['Prophets',[1,.55,.38,.26,.18,.12]],['Gospels',[1]],['Epistles',[1,0,.33,0,.18,0,.08]],['Apocalyptic',[1,.25,0,.4,0,.3,0,.2]]];
+const genreOf=b=>{const i=META.findIndex(m=>m[0]==b);return i<0?4:i<5?0:i<17?1:i<22?2:i==65?6:i<39?3:i<43?4:i==43?1:5};
+const PW={};function genreWave(g){if(!ctx)return null;if(!PW[g]){const h=GENRES[g][1],re=new Float32Array(h.length+1),im=new Float32Array(h.length+1);h.forEach((a,i)=>im[i+1]=a);PW[g]=ctx.createPeriodicWave(re,im)}return PW[g]}
+const curBook=()=>(S.pos&&S.pos.b)||(cur&&(cur.b||cur.rb))||'Genesis';
+function placeOf(w,g){const P=CB.places;if(!P||g==null)return null;const k=String(w).toLowerCase().replace(/[^a-z]/g,'');const L=P[k];if(!L)return null;const e=L.find(x=>x[3].includes(g));return e?{name:e[0],type:e[1],modern:e[2]}:null}
+function cbLook(raw,g){let k,d,lang,w=raw;const h=hebCons(raw),gk=h?'':grkNorm(raw);
+ if(h){lang='heb';d=CB.heb;w=h;k=d&&d.forms[h]}else if(gk){lang='grk';d=CB.grk;k=d&&d.forms[gk];w=raw.replace(/[^\u0370-\u03FF\u1F00-\u1FFF]/g,'')}else{lang='eng';d=CB.eng;k=engStem(raw);w=raw.replace(/[^A-Za-z']/g,'')}
+ const x=d&&k&&d.lex[k];if(!x)return{w,lang,key:null,place:lang=='eng'?placeOf(w,g):null};const f=F0*JUST[x[0]]*Math.pow(2,x[1]);
+ return{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[5]!=null?x[4]:x[3],first:x[5]!=null?x[5]:x[4],ratio:JUSTS[x[0]],oct:x[1],hz:[f,f*CONS[x[2]],f*CONS[x[3]]],place:lang=='eng'?placeOf(w,g):null}}
 function gRef(g){for(const[b,,cs]of META)for(let c=0;c<cs.length;c++){if(g<cs[c])return b+' '+(c+1)+':'+(g+1);g-=cs[c]}return'?'}
 // whole-verse drone: the signatures of the verse's key lemmas (its 3 rarest, i.e. most distinctive, words), blended
-function verseSig(text){const ws=cbWords(text).map(cbLook),ss=ws.filter(x=>x.key),key=ss.slice().sort((a,b)=>a.n-b.n).slice(0,3);return{ws,key,hz:key.map(x=>x.hz[0])}}
+function verseSig(text,g){const ws=cbWords(text).map(w=>cbLook(w,g)),ss=ws.filter(x=>x.key),key=ss.slice().sort((a,b)=>a.n-b.n).slice(0,3);return{ws,key,hz:[F0].concat(key.map(x=>F0*consSnap(x.hz[0]/F0)))}}
 const DAY=864e5,now=()=>Date.now(),$=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const BOOKS=Object.keys(BIBLE),COLORS=["#d9b65a","#6fb38a","#6c9be0","#d27aa8","#e08a5a"];
 const TAGS={Creation:/creat|made|firmament|light|heaven|seas|herb|beast/i,Covenant:/covenant|swear|sware|oath/i,Blessing:/bless/i,Promise:/promise|seed|multiply|give th(ee|is) land/i,
@@ -160,12 +171,12 @@ const SR=12000;
 const TUNE=()=>S.aref==432?432/440:1;
 // layered binaural theta beats, spread around the chosen centre and kept inside 4-8 Hz
 const thetaBeats=c=>[-1.5,-.5,.5,1.5].map(d=>Math.min(8,Math.max(4,+c+d)));
-function build(parts,beat,speed,theta,mins,droneOnly,pulseOnly){const TU=TUNE(),BEATS=thetaBeats(beat),CAR=[150,200,250,300].map(x=>x*TU);const ev=[],marks=[];let T=0;if(pulseOnly)parts=[];
+function build(parts,beat,speed,theta,mins,droneOnly,pulseOnly){const GH=GENRES[genreOf(curBook())][1],gs=GH.reduce((a,x)=>a+x,0),wv=ph=>GH.reduce((a,x,i)=>a+x*Math.sin((i+1)*ph),0)/gs,TU=TUNE(),BEATS=thetaBeats(beat),CAR=[150,200,250,300].map(x=>x*TU);const ev=[],marks=[];let T=0;if(pulseOnly)parts=[];
  parts.forEach((text,pi)=>{marks.push(T);for(const line of text.split("\n")){for(const w of cbWords(line)){const x=cbLook(w);
   if(droneOnly||!x.key){ev.push([0,0,.5/speed]);T+=.5/speed}else{ev.push([x.hz[0],x.hz[1],.5/speed,x.hz[2]]);T+=.5/speed}ev.push([0,0,.12/speed]);T+=.12/speed}ev.push([0,0,.8/speed]);T+=.8/speed}});
  if(!ev.length)ev.push([0,0,1]),T=1;const secs=mins>0?mins*60:T+1,n=Math.floor(SR*secs),buf=new AudioBuffer({numberOfChannels:2,length:n,sampleRate:SR}),L=buf.getChannelData(0),R=buf.getChannelData(1),w=2*Math.PI;
  let i=0,k=0;while(i<n){const [f,d,dur,f2]=ev[k%ev.length];k++;const m=Math.max(1,Math.floor(SR*dur));
-  for(let j=0;j<m&&i<n;j++,i++){if(!f&&!d&&!pulseOnly)continue;const t=j/SR,e=pulseOnly?1:Math.pow(Math.sin(Math.PI*t/dur),2),b=pulseOnly?0:(f?.5*Math.sin(w*f*TU*t):0)+(f?.2:.45)*Math.sin(w*d*TU*t)+(f2?.12*Math.sin(w*f2*TU*t):0);
+  for(let j=0;j<m&&i<n;j++,i++){if(!f&&!d&&!pulseOnly)continue;const t=j/SR,e=pulseOnly?1:Math.pow(Math.sin(Math.PI*t/dur),2),b=pulseOnly?0:(f?.5*wv(w*f*TU*t):0)+(f?.2:.45)*Math.sin(w*d*TU*t)+(f2?.12*Math.sin(w*f2*TU*t):0);
    if(theta){let sl=0,sr2=0;for(let q=0;q<4;q++){sl+=Math.sin(w*CAR[q]*i/SR);sr2+=Math.sin(w*(CAR[q]+BEATS[q])*i/SR)}L[i]=e*(b+.09*sl);R[i]=e*(b+.09*sr2)}else{L[i]=R[i]=e*b}}}
  let pk=0,p=0;const fd=Math.min(mins>0?3:.6,secs/4);for(i=0;i<n;i++){const t=i/SR,iso=theta?.6+.1*BEATS.reduce((a,f)=>a+(Math.sin(w*f*t)>0?1:0),0):1;p=pulseOnly?0:p*.98+(Math.random()*2-1)*.02;
   const fade=pulseOnly?1:Math.min(1,t/fd,(secs-t)/fd);L[i]=(L[i]*iso+.4*p)*fade;R[i]=(R[i]*iso+.4*p)*fade;const a=Math.abs(L[i]),c=Math.abs(R[i]);if(a>pk)pk=a;if(c>pk)pk=c}
@@ -504,7 +515,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101214',BUILD_LABEL='build Live · 2026101214';
+const BUILD='2026101215',BUILD_LABEL='build Live · 2026101215';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -531,14 +542,16 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  const o=[],g=[];[[200,'sine',.35],[100,'triangle',.3],[396,'sine',.02],[528,'sine',.01]].forEach(([f,t,l])=>{const x=ctx.createOscillator();x.type=t;x.frequency.value=f;const y=ctx.createGain();y.gain.value=l;x.connect(y).connect(lp);x.start();o.push(x);g.push(y)});
  lp.connect(am).connect(out).connect(gain);const s7=ctx.createOscillator();s7.frequency.value=777;const g7=ctx.createGain();g7.gain.value=0;s7.connect(g7).connect(gain);s7.start();
  const mg=ctx.createChannelMerger(2),thG=ctx.createGain();thG.gain.value=0;mg.connect(thG).connect(gain);const thL=[],thR=[];[150,200,250,300].forEach((f,q)=>{[0,1].forEach(ch=>{const x=ctx.createOscillator(),y=ctx.createGain();y.gain.value=.25;x.connect(y).connect(mg,0,ch);x.start();(ch?thR:thL).push(x)})});
- bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG};bedTune()}
+ const dv=[0,1,2].map(()=>{const x=ctx.createOscillator(),y=ctx.createGain();y.gain.value=0;x.frequency.value=F0;x.connect(y).connect(lp);x.start();return{x,y}});
+ bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG,dv};bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
 setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16:0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
-function bedSteer(orig,eng,dur,refs){bedInit();if(!bed)return;const T=ctx.currentTime,TU=TUNE(),vs=verseSig(orig||eng);
- const dh=vs.hz.length?vs.hz:[200],f0=bed.o[0].frequency;f0.cancelScheduledValues(T);f0.setTargetAtTime(dh[0]*TU,T,1.5);
- bed.o[1].frequency.setTargetAtTime((dh[1]||dh[0])/2*TU,T,3);bed.g[0].gain.setTargetAtTime(dh[2]?.2:.25,T,2);bed.g[1].gain.setTargetAtTime(.2,T,2);
+function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.currentTime,TU=TUNE(),vs=verseSig(orig||eng,g),f0=bed.o[0].frequency;
+ // verse drone: the pupil F0 (+ sub-octave) plus the verse's 3 rarest lemmas, each pulled to the nearest consonance of F0
+ f0.cancelScheduledValues(T);f0.setTargetAtTime(F0*2*TU,T,1.5);bed.o[1].frequency.setTargetAtTime(F0*TU,T,3);bed.g[0].gain.setTargetAtTime(.18,T,2);bed.g[1].gain.setTargetAtTime(.22,T,2);
+ bed.dv.forEach((d,i)=>{const h=vs.hz[i+1];if(h)d.x.frequency.setTargetAtTime(h*2*TU,T,1.5);d.y.gain.setTargetAtTime(h?.07:0,T,2)});bed.lastVs=vs;
  cbWordsPlay(vs.ws,dur,narrOn());
  const w=themeW(eng,refs),ord=w.map((x,i)=>[x,i]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]),tot=ord.reduce((a,x)=>a+x[0],0)||1;
  [2,3].forEach((oi,j)=>{const t=ord[j];if(t){bed.o[oi].frequency.setTargetAtTime(THEMES[t[1]][2]*TUNE(),T,3);bed.g[oi].gain.setTargetAtTime(.012+.04*t[0]/tot,T,3)}else bed.g[oi].gain.setTargetAtTime(.005,T,3)});
@@ -547,17 +560,26 @@ const gIdx=(bi,c,v)=>bi*1e6+c*1e3+v;
 // one signature note per word, spread across the verse's narration; ramped in/out (no clicks); 'Now decoding' line follows
 function cbWordsPlay(ws,dur,audio){const tok=++cbTok,n=Math.min(ws.length,120);if(!n){cbShow(null);return}const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05,TU=TUNE();
  for(let k=0;k<n;k++){const x=ws[k],t=t0+k*step;setTimeout(()=>{if(tok==cbTok&&(playing||nmA))cbShow(x)},(t-ctx.currentTime)*1000);
-  if(!audio||!x.key)continue;const len=Math.min(step*.9,1.2);x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;
+  if(!audio||!x.key)continue;const len=Math.min(step*.9,1.2);const pw=genreWave(genreOf(curBook()));x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;if(pw&&!j)o.setPeriodicWave(pw);
    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.05);g.gain.setValueAtTime(a,t+len*.5);g.gain.linearRampToValueAtTime(0,t+len);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+len+.05);o.onended=()=>{o.disconnect();g.disconnect()}})}}
 function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===false?'none':'';if(!x){e.textContent='';return}
- e.textContent=x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.n}× · first ${gRef(x.first)} → ${x.hz.map(f=>Math.round(f*TUNE())).join('/')} Hz`:`Now decoding: ${x.w} · (not in codebook, rest)`}
-function playMotif(r,dir){if(!bed)return;const t0=ctx.currentTime+.05;[...String(r[4]||'4')].forEach((d,k)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=t0+k*.32;o.frequency.value=(HSET[+d]||200)*2*TUNE();
- g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22*(S.echoVol!=null?+S.echoVol:1),t+.08);g.gain.setTargetAtTime(0,t+.16,.25);let n=o.connect(g);if(ctx.createStereoPanner){const p=ctx.createStereoPanner();p.pan.value=dir;n=n.connect(p)}n.connect(bed.lp);o.start(t);o.stop(t+1.6)})}
+ const pl=x.place?` · 📍 ${x.place.name.replace(/ \d+$/,"")}${x.place.modern&&x.place.modern!=x.place.name?' ('+x.place.modern+')':''}`:'';
+ e.textContent=(x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.ratio}${x.oct?' ×'+(1<<x.oct):''} · ${Math.round(x.hz[0]*TUNE())} Hz · ${x.n}× · first ${gRef(x.first)} · ${GENRES[genreOf(curBook())][0]}`:`Now decoding: ${x.w} · (not in codebook, rest)`)+pl}
+// cross-reference meeting (The Eye): both verses' tones share the F0 pupil. The current verse's key tones leave from one side
+// while the cross reference's key tones swell in from the opposite side (left = earlier in the Bible, right = later), mirrored
+// envelopes crossing at the centre. Bidirectional: the same pair heard from the other verse mirrors the sides.
+async function refTones(r){try{const b=META[r[0]][0],bk=await getBook(b),t=bk.c[r[1]-1][r[2]-1]||'';return verseSig(t,gIdxG(b,r[1],r[2])).hz.slice(1)}catch(e){return[]}}
+function meet(mine,theirs,dir,len){if(!bed||!ctx.createStereoPanner)return;const t=ctx.currentTime+.05,TU=TUNE(),ev=(S.echoVol!=null?+S.echoVol:1)*.1;
+ const voice=(f,from,to,up)=>{const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createStereoPanner();o.frequency.value=f*2*TU;p.pan.setValueAtTime(from,t);p.pan.linearRampToValueAtTime(to,t+len);
+  g.gain.setValueAtTime(up?0:ev,t);g.gain.linearRampToValueAtTime(up?ev:0,t+len);g.gain.linearRampToValueAtTime(0,t+len+.4);o.connect(g).connect(p).connect(bed.lp);o.start(t);o.stop(t+len+.5);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect()}};
+ voice(F0,0,0,true);mine.forEach(f=>voice(f,-dir,dir*.0,false));theirs.forEach(f=>voice(f,dir,0,true))}
 function echoes(b,c,v,dur,refs){if(S.echo===false)return;const tok=++echoTok,me=gIdx(META.findIndex(m=>m[0]==b),c,v),top=refs.slice(0,3);
- top.forEach((r,j)=>setTimeout(()=>{if(tok!=echoTok||!(playing||nmA))return;playMotif(r,gIdx(r[0],r[1],r[2])<me?-.7:.7);const el=document.querySelectorAll('.conn .xc[data-j="'+j+'"]');el.forEach(e=>{e.classList.add('lit');setTimeout(()=>e.classList.remove('lit'),1300)})},(j+1)*dur/(top.length+1)*1000))}
+ top.forEach((r,j)=>setTimeout(async()=>{if(tok!=echoTok||!(playing||nmA))return;const th=await refTones(r);if(tok!=echoTok)return;const mine=(bed&&bed.lastVs?bed.lastVs.hz.slice(1):[]);
+  meet(mine,th,gIdx(r[0],r[1],r[2])<me?-.7:.7,j?1.2:2);const el=document.querySelectorAll('.conn .xc[data-j="'+j+'"]');el.forEach(e=>{e.classList.add('lit');setTimeout(()=>e.classList.remove('lit'),1300)})},(j+1)*dur/(top.length+1)*1000))}
+function gIdxG(b,c,v){let g=0;for(const[n,,cs]of META){if(n==b){for(let i=0;i<c-1;i++)g+=cs[i];return g+v-1}g+=cs.reduce((a,x)=>a+x,0)}return null}
 function onVerse(b,c,v,d,tok){const k=b+'.'+c+'.'+v;S.visited[k]=1;if(Object.keys(S.visited).length>20000)S.visited={[k]:1};
  const dur=narrOn()?((d[1]||'').split(/\s+/).length*.42/vRate()+1):(rendered?rendered.buf.duration:6);
- getX(b).catch(()=>({})).then(X=>{if(tok!=streamTok)return;const refs=(X||{})[c+'.'+v]||[];bedSteer(d[0],d[1]||'',dur,refs);drawConn();if(refs.length)echoes(b,c,v,dur,refs)})}
+ getX(b).catch(()=>({})).then(X=>{if(tok!=streamTok)return;const refs=(X||{})[c+'.'+v]||[];bedSteer(d[0],d[1]||'',dur,refs,gIdxG(b,c,v));drawConn();if(refs.length)echoes(b,c,v,dur,refs)})}
 function drawConn(){document.querySelectorAll('.conn,.xcr').forEach(e=>e.remove());const p=S.pos;if(!cur||!cur.rb)return;if(S.xrefTabs===false)return;const refs=((XC[p.b]||{})[p.c+'.'+p.v]||[]).slice(0,+S.xrefN||5);if(!refs.length)return;
  const h=`<div class="conn" onclick="event.stopPropagation()"><span class="dim" style="align-self:center">Cross references</span>${refs.map((r,j)=>`<button class="xc" data-j="${j}" onclick="event.stopPropagation();playAt('${META[r[0]][0]}',${r[1]},${r[2]})">${META[r[0]][0]} ${r[1]}:${r[2]}</button>`).join('')}</div><div class="dim xcr" style="font-size:11px;padding:0 6px 6px">Cross references: <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY · tap a tab to play it</div>`;
  const a=$('r'+posKey(p));a&&a.insertAdjacentHTML('afterend',h);if(S.view.b==p.b&&S.view.c==String(p.c)){const e=$('v'+p.v);e&&e.insertAdjacentHTML('afterend',h)}}
@@ -597,11 +619,11 @@ function uiInit(){if($('sheet'))return;document.body.insertAdjacentHTML('beforee
  $('sound1').innerHTML='<div class="dim">Presets set the whole mix in one tap. Fine controls are under More. The tones are a quiet backdrop for attention, not a treatment.</div>'+PRE.map((p,i)=>`<button class="pre" id="pre${i}" onclick="preset(${i})" style="display:block;width:100%;text-align:left;margin:4px 0"><b>${p[0]}</b><br><span>${p[1]}</span><br><small class="dim">${p[8]}</small></button>`).join('');drawPre();
  $('sound2').insertAdjacentHTML('beforeend',`<div class="dim"><b>What each tone is (no healing claims):</b><br>
  <b>Theta beats</b>: four binaural pairs at once (carriers 150/200/250/300 Hz, beats kept inside 4-8 Hz, the brainwave band called theta). Headphones needed. Research on binaural beats and mood or sleep is mixed and small; treat it as ambience.<br>
- <b>Word tones</b>: each whole word is looked up by its lemma (Hebrew Strong's number from OSHB, Greek lemma from MorphGNT, or a KJV word stem where no original is bundled) and always plays the same signature: how often the word occurs in the Bible sets the register (common words low, rare words higher), its first mention sets the root within the harmonic set on 100 Hz, and the words it most often shares a verse with add two partials. A soft drone blends the verse's key words. This is a devotional mapping built from the Bible's own word usage, not a frequency named in scripture.<br>
+ <b>How tones are made: The Eye</b> (Matthew 6:22, "if therefore thine eye be single, thy whole body shall be full of light"). Every harmony is two waves meeting at one centre. <i>The pupil</i>: one centre note, 110 Hz (or 108 Hz with 432 tuning), under everything. <i>The iris</i>: each whole word (its Hebrew or Greek lemma, or KJV stem) has one fixed note from the 12-step just scale; which step is spread by the golden ratio over the order in which words first appear in the Bible, and how often the word occurs sets its octave (common words low, rare words high). No letter values, gematria or numerology. <i>The lids</i>: the two words it most often shares a verse with add two softer notes, always snapped to a calm interval (unison, third, fourth, fifth, octave). The verse drone is the centre plus its 3 rarest words, pulled to calm intervals of the centre. Each book's genre (Law, History, Poetry, Prophets, Gospels, Epistles, Apocalyptic) sets the instrument colour. Cross references meet in the middle: this verse's notes fade from one side while the linked verse's notes swell from the other, crossing at the centre. A devotional mapping from the Bible's own word usage, not a frequency named in scripture.<br>
  <b>Theme partials</b>: some theme words add quiet partials at 174-963 Hz. These are the "solfeggio" numbers, which come from 1990s numerology, not from scripture or medieval chant. Light/Spirit verses switch a slow 7.83 Hz shimmer (the Schumann figure, an earth-ionosphere resonance) to 40 Hz; both are colour only.<br>
  <b>777 Hz</b>: a soft steady tone, a symbolic choice. It is not a researched or biblical frequency.<br>
  <b>Tuning</b>: scripture names no tuning or Hz value (the 120 trumpeters of 2 Chr 5:12 are a head count, not a pitch). A=440 is the 1939/ISO standard (first proposed 1834); the story that 440 was a Nazi plot is a 1988 myth. A=432 rests on one small borderline pilot study, so it is offered only as a preference.<br>
- <b>Echoes</b>: real cross references from OpenBible.info (CC-BY), top 5 per verse by votes, played as soft panned motifs: left = earlier in the Bible, right = later.<br>
+ <b>Echoes</b>: real cross references from OpenBible.info (CC-BY), top 5 per verse by votes, played as mirrored meetings: left = earlier in the Bible, right = later. Place names (KJV) from OpenBible.info Bible Geocoding Data (CC-BY 4.0) show in the Now decoding line.<br>
  Texts: KJV; Greek NT Scrivener 1894 TR (Robinson, public domain); Hebrew WLC via OSHB.</div>
   <div class="dim" style="margin-top:6px">Word codebook: one fixed signature per lemma, from the Bible's own usage (see Settings › Data and about).</div>`);
  [...more.querySelectorAll(':scope > .dim')].forEach(e=>$('sound2').appendChild(e));
