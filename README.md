@@ -9,6 +9,7 @@ Bible audio web app: scripture narration with a tone layer built from each word'
 - **Hebrew**: Westminster Leningrad Codex via Open Scriptures Hebrew Bible (OSHB). **Greek**: MorphGNT/SBLGNT lemmas; Scrivener 1894 TR text.
 - **Strong's Hebrew and Greek dictionaries**: public domain; JSON by Open Scriptures (CC-BY-SA). Glosses used for emotion scoring only.
 - **NRC VAD Lexicon** (Saif M. Mohammad, National Research Council Canada, 2018): non-commercial use with credit. Only per-verse aggregates are shipped (`vad/`).
+- **Butterchurn** 2.6.7 (Jordan Berg, MIT; `vendor/butterchurn-2.6.7.min.js`, licence in `vendor/butterchurn-LICENSE.txt`): WebGL port of **MilkDrop** by Ryan Geiss (BSD). Powers the MilkDrop background style with four Sonolumina-authored presets; no community preset packs are included.
 - **OpenBible.info**: cross references and place geocoding (CC-BY).
 
 ## Build tools

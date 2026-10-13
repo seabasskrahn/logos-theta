@@ -529,7 +529,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101222',BUILD_LABEL='build Live · 2026101222';
+const BUILD='2026101223',BUILD_LABEL='build Live · 2026101223';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -655,6 +655,7 @@ function uiInit(){if($('sheet'))return;document.body.insertAdjacentHTML('beforee
  <b>Theme partials</b>: some theme words add quiet partials at 174-963 Hz. These are the "solfeggio" numbers, which come from 1990s numerology, not from scripture or medieval chant. Light/Spirit verses switch a slow 7.83 Hz shimmer (the Schumann figure, an earth-ionosphere resonance) to 40 Hz; both are colour only.<br>
  <b>777 Hz</b>: a soft steady tone, a symbolic choice. It is not a researched or biblical frequency.<br>
  <b>Tuning</b>: scripture names no tuning or Hz value (the 120 trumpeters of 2 Chr 5:12 are a head count, not a pitch). A=440 is the 1939/ISO standard (first proposed 1834); the story that 440 was a Nazi plot is a 1988 myth. A=432 rests on one small borderline pilot study, so it is offered only as a preference.<br>
+ <b>MilkDrop style</b>: rendered with Butterchurn 2.6.7 by Jordan Berg (MIT licence, github.com/jberg/butterchurn), a WebGL port of MilkDrop by Ryan Geiss (BSD licence). The four presets are Sonolumina's own; no community preset packs are bundled. Without WebGL2 it falls back to Eye waves.<br>
  <b>Text</b>: Berean Standard Bible (BSB), public domain (Berean Bible, bereanbible.com), the default reading and narration text; King James Version (KJV), public domain; World English Bible (WEB, ebible.org), public domain, used only to score emotion. Strong's Hebrew and Greek dictionaries (public domain; JSON by Open Scriptures, CC-BY-SA) supply English glosses of the original words for emotion scoring.<br>
  <b>Echoes</b>: real cross references from OpenBible.info (CC-BY), top 5 per verse by votes, played as mirrored meetings: left = earlier in the Bible, right = later. Place names (KJV) from OpenBible.info Bible Geocoding Data (CC-BY 4.0) show in the Now decoding line.<br>
  Texts: BSB and KJV (English); Greek NT Scrivener 1894 TR (Robinson, public domain); Hebrew WLC via OSHB.</div>
@@ -916,7 +917,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'xrefTabs',l:'Show cross-reference tabs',d:'Tappable tabs under the current verse.',t:'chk',g:()=>S.xrefTabs,s:v=>{S.xrefTabs=v;persist();applyDisplay()}},
   {k:'rsvp',l:'Speed-reading view (RSVP)',d:'Flash the words one chunk at a time in the player, locked to the voice and tones.',t:'chk',g:()=>!!S.rsvp,s:v=>{S.rsvp=v;persist();rsvpApply()}},
   {k:'rsvpN',l:'RSVP chunk size',d:'Words per flash.',t:'range',min:1,max:5,step:1,g:()=>S.rsvpN||1,s:v=>{S.rsvpN=+v;persist();rsvpApply()},f:x=>x+(x>1?' words':' word')},
-  {k:'viz',l:'Background visual',d:'Animated visual behind the player, driven by the sound.',t:'sel',o:()=>[['eye','Eye waves'],['cym','Cymatics'],['spec','Spectrum'],['stars','Starfield'],['off','Off']],g:()=>S.viz||'eye',s:v=>{S.viz=v;persist()}},
+  {k:'viz',l:'Background visual',d:'Animated visual behind the player, driven by the sound.',t:'sel',o:()=>[['eye','Eye waves'],['cym','Cymatics'],['md','MilkDrop (needs WebGL2)'],['spec','Spectrum'],['stars','Starfield'],['off','Off']],g:()=>S.viz||'eye',s:v=>{S.viz=v;persist()}},
   {k:'he',l:'Original text',d:'Show Torah Hebrew / NT Greek where bundled.',t:'chk',g:()=>S.r.he,s:v=>ctl(rhe,v,'change')}]],
  ['int','🔗','Intersect','Follow the thread, cross-refs shown',[
   {k:'thread',l:'Follow the thread',d:'Hop to the strongest unvisited cross reference.',t:'chk',g:()=>S.thread,s:v=>ctl(thread,v,'change')},
@@ -959,7 +960,8 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
 // ---- RSVP speed-reading view + background visualizer (build 2026101216). Plain JS.
 (function(){
  const css=document.createElement('style');css.textContent=`#vizC{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0;transition:opacity .4s}body.fpo #vizC{opacity:1}
- #fp{background:radial-gradient(120% 70% at 50% 0%,#2b2536cc 0%,#14121bdd 60%)!important}body.fpo #vizC~#fp,#fp{}#vizS{position:fixed;inset:0;z-index:9;pointer-events:none;background:#0a090ecc;display:none}body.fpo #vizS{display:block}
+ #fp{background:radial-gradient(120% 70% at 50% 0%,#2b2536cc 0%,#14121bdd 60%)!important}body.fpo #vizC~#fp,#fp{}#mdC{position:fixed;inset:0;width:100%;height:100%;z-index:9;pointer-events:none;display:none;image-rendering:auto}
+#vizS{position:fixed;inset:0;z-index:9;pointer-events:none;background:#0a090ecc;display:none}body.fpo #vizS{display:block}
  #rsvp{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;min-height:30vh;touch-action:pan-x;user-select:none}body.rsvpOn #rsvp{display:flex}body.rsvpOn #fpTxt{display:none}
  #rsvpW{font:600 44px Georgia,serif;color:#ece9f2;text-align:center;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:clip;text-shadow:0 2px 10px #000}#rsvpW .orp{color:#e05050}
  #rsvpG{width:2px;height:12px;background:#d9b65a66;margin:4px auto}#rsvpI{font-size:12px;color:#9a95a8;margin-top:8px}
@@ -1001,7 +1003,37 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  // ---- visualizer: AnalyserNode on the master mix
  let an=null,fd=null,td=null,stars=null,lastF=0;const mob=/Android|iPhone|iPad|Mobi/i.test(navigator.userAgent),c2=cv.getContext('2d');
  function size(){const d=Math.min(devicePixelRatio||1,mob?1:1.5);cv.width=innerWidth*d;cv.height=innerHeight*d}addEventListener('resize',size);size();
- function draw(now){const EE=window.LT_E||{v:.5,a:.5,d:.5},HUE1=210-170*EE.v,HUE2=HUE1+150,C1=`hsl(${HUE1},${45+30*EE.v}%,${45+15*EE.v}%)`,C2=`hsl(${HUE2},55%,${40+15*EE.d}%)`,W=cv.width,H=cv.height,st=document.body.classList.contains('vis')?(S.visStyle||'cym'):(S.viz||'eye');c2.clearRect(0,0,W,H);if(st=='off'||!document.body.classList.contains('fpo')){scr.style.display='none';return}scr.style.display='';
+ // ---- MilkDrop style: Butterchurn 2.6.7 (MIT, vendor/), lazy-loaded; 4 Sonolumina presets (per-frame equations only, default shaders).
+ // Audio: a tap on the master (music + tones). Engine values injected each frame via window.LT_MD: v valence -> colour (cool blue..warm gold),
+ // a arousal -> speed, p word-onset pulse -> zoom. One preset per emotion band, blended 3 s. Half-resolution canvas, CSS-upscaled, <=30 fps.
+ const MD={st:0,vz:null,cv:null,last:0,band:null,gl2:null};
+ function mdGL2(){if(MD.gl2==null){try{MD.gl2=!!document.createElement('canvas').getContext('webgl2')}catch(e){MD.gl2=false}}return MD.gl2}
+ function mdPreset(o){const fe=`var g=window.LT_MD||{v:.5,a:.5,p:0},sp=.4+g.a,c=Math.min(1,Math.max(0,g.v));
+a.decay=${o.decay};a.zoom=1+${o.z}*sp+.006*g.p+.0015*Math.min(2,a.bass_att);a.rot=${o.rot}*sp*Math.sin(a.time*.05)+.0006*Math.min(2,a.mid_att);
+a.warp=${o.warp}+.04*Math.min(2,a.treb_att);a.dx=.0012*Math.sin(a.time*.11*sp);a.dy=.0012*Math.cos(a.time*.09*sp);
+a.wave_r=(.20+.80*c)*${o.br};a.wave_g=(.40+.35*c)*${o.br};a.wave_b=(.95-.70*c)*${o.br};a.wave_a=.22+.25*g.p+.08*Math.min(2,a.bass);
+a.ob_r=a.wave_r*.4;a.ob_g=a.wave_g*.4;a.ob_b=a.wave_b*.4;`;
+  return{baseVals:{gammaadj:1,decay:o.decay,echo_zoom:1,echo_alpha:0,wave_mode:o.mode,additivewave:0,wave_dots:0,wave_thick:1,wave_brighten:0,darken_center:1,wrap:0,invert:0,brighten:0,darken:0,solarize:0,
+   wave_a:.3,wave_scale:o.scale,wave_smoothing:.85,wave_mystery:o.myst,modwavealphabyvolume:0,warpanimspeed:.3,warpscale:2,zoomexp:1,zoom:1,rot:0,cx:.5,cy:.5,dx:0,dy:0,warp:o.warp,sx:1,sy:1,
+   ob_size:.005,ob_a:.25,ib_size:0,ib_a:0,mv_a:0},shapes:[],waves:[],init_eqs_str:'',frame_eqs_str:fe,pixel_eqs_str:'',warp:'',comp:''}}
+ const MDP={sorrow:mdPreset({decay:.982,z:.0025,rot:.004,warp:.05,mode:0,scale:.7,myst:0,br:.55}),   // still pool: slow inward ring
+  longing:mdPreset({decay:.978,z:.004,rot:-.006,warp:.12,mode:2,scale:.6,myst:.2,br:.6}),            // drifting mist
+  peace:mdPreset({decay:.975,z:.005,rot:.008,warp:.18,mode:5,scale:.55,myst:-.3,br:.65}),            // slow spiral bloom
+  joy:mdPreset({decay:.972,z:.007,rot:.01,warp:.22,mode:7,scale:.5,myst:.4,br:.7})};                 // warm rising halo
+ function mdSize(){if(!MD.cv)return;const d=Math.min(devicePixelRatio||1,1),w=Math.max(160,Math.round(innerWidth*d/2)),h=Math.max(120,Math.round(innerHeight*d/2));MD.cv.width=w;MD.cv.height=h;MD.vz&&MD.vz.setRendererSize(w,h)}
+ addEventListener('resize',mdSize);
+ function mdFrame(now,EE){if(MD.st<0)return false;
+  if(!MD.st){MD.st=1;const sc=document.createElement('script');sc.src='vendor/butterchurn-2.6.7.min.js';sc.onload=()=>{MD.st=2};sc.onerror=()=>{MD.st=-1};document.head.appendChild(sc)}
+  if(!MD.cv){MD.cv=document.createElement('canvas');MD.cv.id='mdC';document.body.insertBefore(MD.cv,scr)}
+  if(MD.st==2&&ctx&&window.LT_MASTER){try{const B=window.butterchurn.default||window.butterchurn;mdSize();MD.vz=B.createVisualizer(ctx,MD.cv,{width:MD.cv.width,height:MD.cv.height,pixelRatio:1,textureRatio:1});
+    const tap=ctx.createGain();tap.gain.value=.7;LT_MASTER.connect(tap);MD.vz.connectAudio(tap);MD.st=3}catch(e){console.warn('milkdrop',e);MD.st=-1;return false}}
+  MD.cv.style.display=MD.st==3?'block':'none';if(MD.st!=3)return true;
+  const tn=window.LT_TONE,age=tn?(now-tn.t)/1000:9;window.LT_MD={v:EE.v,a:EE.a,p:Math.max(0,1-age/.8)};
+  const band=EE.v>.7?'joy':EE.v>.5?'peace':EE.v>.32?'longing':'sorrow';if(band!=MD.band){MD.vz.loadPreset(MDP[band],MD.band?3:0);MD.band=band}
+  if(now-MD.last>=33){MD.last=now;try{MD.vz.render()}catch(e){console.warn('milkdrop',e);MD.st=-1;MD.cv.style.display='none'}}return true}
+ window.LT_MDSTATE=()=>({st:MD.st,band:MD.band,gl2:mdGL2(),w:MD.cv&&MD.cv.width,h:MD.cv&&MD.cv.height});
+ function draw(now){const EE=window.LT_E||{v:.5,a:.5,d:.5},HUE1=210-170*EE.v,HUE2=HUE1+150,C1=`hsl(${HUE1},${45+30*EE.v}%,${45+15*EE.v}%)`,C2=`hsl(${HUE2},55%,${40+15*EE.d}%)`,W=cv.width,H=cv.height,st0=document.body.classList.contains('vis')?(S.visStyle||'cym'):(S.viz||'eye');let st=st0;c2.clearRect(0,0,W,H);if(st=='off'||!document.body.classList.contains('fpo')){scr.style.display='none';if(MD.cv)MD.cv.style.display='none';return}scr.style.display='';
+  if(st=='md'){if(mdGL2()&&mdFrame(now,EE))return;st='eye'}else if(MD.cv)MD.cv.style.display='none';
   if(!an&&ctx&&gain){an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=.8;gain.connect(an);fd=new Uint8Array(an.frequencyBinCount);td=new Uint8Array(an.fftSize)}
   if(an){an.getByteFrequencyData(fd);an.getByteTimeDomainData(td)}const lvl=fd?fd.slice(0,64).reduce((a,x)=>a+x,0)/64/255:0,T=now/1000*(.5+EE.a);c2.globalAlpha=.55;
   if(st=='cym'&&window.drawCym){c2.globalAlpha=1;drawCym(c2,W,H,now,fd,lvl,mob,BEND)}else if(st=='spec'){const n=48;for(let i=0;i<n;i++){const v=fd?fd[Math.floor(Math.pow(i/n,1.6)*fd.length*.5)]/255:.05,h=v*H*.6,x=i*W/n;c2.fillStyle=`hsl(${40+i*4},70%,${35+v*30}%)`;c2.fillRect(x+1,H-h,W/n-2,h);c2.fillRect(x+1,0,W/n-2,h*.3)}}
@@ -1100,7 +1132,7 @@ document.querySelector('.rsb').insertAdjacentHTML('beforeend','<button id="modeB
  body.vis #rsvpW{font-size:56px}#visC{position:fixed;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));z-index:14;display:none;justify-content:center;gap:6px;flex-wrap:wrap;transition:opacity .5s;opacity:0;pointer-events:none}
  body.vis #visC{display:flex}#visC.show{opacity:1;pointer-events:auto}#visC button{background:#000a;color:#ece9f2;border-radius:16px;padding:8px 12px;font-size:15px}#visN{position:fixed;top:calc(10px + env(safe-area-inset-top));left:0;right:0;text-align:center;z-index:14;font-size:12px;color:#d9b65a;display:none}body.vis #visN{display:block}`;document.head.appendChild(st);
  document.body.insertAdjacentHTML('beforeend','<div id="visN"></div><div id="visC"><button onclick="fpPP.click()" id="visPP">▶</button><button onclick="visSpd(-1)">−</button><button id="visSp" onclick="visSpd(0)"></button><button onclick="visSpd(1)">+</button><button id="visCh" onclick="S.rsvpN=(S.rsvpN||1)%5+1;persist();rsvpApply();visUi()"></button><button id="visSt" onclick="visStyle()"></button><button onclick="visFs()">⛶</button><button onclick="setTab(\'book\')">✕</button></div>');
- const STY=[['cym','Cymatics'],['eye','Eye'],['spec','Spectrum'],['stars','Stars']];let hideT=null,on=false,saved=null,savedNarr=null;
+ const STY=[['cym','Cymatics'],['md','MilkDrop'],['eye','Eye'],['spec','Spectrum'],['stars','Stars']];let hideT=null,on=false,saved=null,savedNarr=null;
  window.visUi=function(){visPP.textContent=isOn()?'⏸':'▶';const sp=+S.speed||1;visSp.textContent=sp+'× · '+(typeof rsvpWPM=='function'?rsvpWPM():'')+' wpm';visCh.textContent=(S.rsvpN||1)+'w';visSt.textContent=(STY.find(x=>x[0]==(S.visStyle||'cym'))||STY[0])[1];
   visN.textContent=savedNarr!=null?`Voice muted above ${window.LT_VMAX}×: words and tones only`:''};
  const show=()=>{visC.classList.add('show');visUi();clearTimeout(hideT);hideT=setTimeout(()=>visC.classList.remove('show'),3000)};
