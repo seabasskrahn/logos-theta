@@ -268,7 +268,7 @@ async function flToggle(){const on=flash.style.display!='block';flStop();if(on&&
  flWords();const sp=flLoad(),v=rsel&&rsel.c==S.r.c?rsel.a:1;flI=sp&&sp.b==S.r.b&&sp.c==S.r.c&&!rsel?Math.min(flW.length-1,Math.max(0,+sp.i||0)):Math.max(0,flW.findIndex(x=>x[1]==v));flShow();flash.scrollIntoView({block:'center'})}
 // ---- sleep timer: fade over last 45 s, then stop audio + narration
 let slpEnd=0,slpI=null;function setSleep(m){clearInterval(slpI);slpEnd=m?now()+m*60e3:0;if(gain)gain.gain.value=+S.vol;slpS.textContent='';if(!m)return;
- slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;if(ctx&&ctx.state=='suspended'&&playing)ctx.resume();slpS.textContent=' '+fmt(r)+' left';if(gain&&r<45)gain.gain.value=+S.vol*Math.max(0,r/45);
+ slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;if(ctx&&ctx.state=='suspended'&&playing)ctx.resume();slpS.textContent=' '+fmt(r)+' left';const F=+S.fade||45;if(gain&&r<F)gain.gain.value=+S.vol*Math.max(0,r/F);
   if(r<=0){clearInterval(slpI);streamTok++;pause();spkStop();if(typeof prayStop=='function'&&prOn&&!prayM)prayStop();window.ltSess=false;if(window.LT_BG)LT_BG.stop().catch(()=>{});slpEnd=0;slp.value='0';slpS.textContent=' stopped';setTimeout(()=>{if(gain)gain.gain.value=+S.vol},500)}},500)}
 // ---- verse of the day (deterministic by date; prefers due + highlighted)
 function drawVotd(){const d=new Date().toDateString();if(S.votdX==d){votd.innerHTML='';return}const pool=new Set(Object.keys(S.hl));
@@ -455,7 +455,7 @@ function chunkEnd(b,c,v){const n=MB[b][2][c-1],k=S.chunk;if(k=='cont')return{b:'
  if(k=='custom')return{b,c,v:Math.min(n,v+Math.max(1,+S.chunkN||1)-1)};
  if(k=='para'){const bk=BKCACHE[b];if(bk&&bk.c[c-1]){const vs=bk.c[c-1];let e=v;while(e<n&&e-v<7){const t=vs[e-1]||'',nx=vs[e]||'';if(e-v>=1&&/[.?!]['’”)]?$/.test(t.trim())&&!CONJ.test(nx.trim()))break;e++}return{b,c,v:e}}return{b,c,v:Math.min(n,v+3)}}
  return chEnd(b,c)}
-let pre=null,preT=null;const XF=.8;
+let pre=null,preT=null;let XF=+(S.xf!=null?S.xf:.8);
 function peekNext(){const p=S.pos;if(!cur||!cur.rb)return null;
  if(S.thread&&!night){const r=threadNext(p);if(r)return{...r,end:{b:r.b,c:r.c,v:r.v}}}
  if(night&&S.lastRange){const r=S.lastRange,n=nextPos(p);return(n&&n.b==r.b&&n.c==r.c&&n.v<=r.z)?{...n,end:{b:r.b,c:r.c,v:r.z}}:{b:r.b,c:r.c,v:r.a,end:{b:r.b,c:r.c,v:r.z}}}
@@ -488,7 +488,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101210',BUILD_LABEL='build Background · 2026101210';
+const BUILD='2026101211',BUILD_LABEL='build Settings · 2026101211';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 // ---- the Intersect: evolving tone bed, cross-reference echoes, connections strip, follow the thread
@@ -520,13 +520,13 @@ function bedSteer(orig,eng,dur,refs){bedInit();if(!bed)return;const T=ctx.curren
  const ls=w[2]+w[3];bed.lfo.frequency.setTargetAtTime(ls>.5?40:7.83,T,3);bed.lfoG.gain.setTargetAtTime(ls>.5?.04:.08,T,3)}
 const gIdx=(bi,c,v)=>bi*1e6+c*1e3+v;
 function playMotif(r,dir){if(!bed)return;const t0=ctx.currentTime+.05;[...String(r[4]||'4')].forEach((d,k)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=t0+k*.32;o.frequency.value=(HSET[+d]||200)*2*TUNE();
- g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+.08);g.gain.setTargetAtTime(0,t+.16,.25);let n=o.connect(g);if(ctx.createStereoPanner){const p=ctx.createStereoPanner();p.pan.value=dir;n=n.connect(p)}n.connect(bed.lp);o.start(t);o.stop(t+1.6)})}
-function echoes(b,c,v,dur,refs){const tok=++echoTok,me=gIdx(META.findIndex(m=>m[0]==b),c,v),top=refs.slice(0,3);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22*(S.echoVol!=null?+S.echoVol:1),t+.08);g.gain.setTargetAtTime(0,t+.16,.25);let n=o.connect(g);if(ctx.createStereoPanner){const p=ctx.createStereoPanner();p.pan.value=dir;n=n.connect(p)}n.connect(bed.lp);o.start(t);o.stop(t+1.6)})}
+function echoes(b,c,v,dur,refs){if(S.echo===false)return;const tok=++echoTok,me=gIdx(META.findIndex(m=>m[0]==b),c,v),top=refs.slice(0,3);
  top.forEach((r,j)=>setTimeout(()=>{if(tok!=echoTok||!(playing||nmA))return;playMotif(r,gIdx(r[0],r[1],r[2])<me?-.7:.7);const el=document.querySelectorAll('.conn .xc[data-j="'+j+'"]');el.forEach(e=>{e.classList.add('lit');setTimeout(()=>e.classList.remove('lit'),1300)})},(j+1)*dur/(top.length+1)*1000))}
 function onVerse(b,c,v,d,tok){const k=b+'.'+c+'.'+v;S.visited[k]=1;if(Object.keys(S.visited).length>20000)S.visited={[k]:1};
  const dur=narrOn()?((d[1]||'').split(/\s+/).length*.42/vRate()+1):(rendered?rendered.buf.duration:6);
  getX(b).catch(()=>({})).then(X=>{if(tok!=streamTok)return;const refs=(X||{})[c+'.'+v]||[];bedSteer(d[0],d[1]||'',dur,refs);drawConn();if(refs.length)echoes(b,c,v,dur,refs)})}
-function drawConn(){document.querySelectorAll('.conn,.xcr').forEach(e=>e.remove());const p=S.pos;if(!cur||!cur.rb)return;const refs=(XC[p.b]||{})[p.c+'.'+p.v];if(!refs||!refs.length)return;
+function drawConn(){document.querySelectorAll('.conn,.xcr').forEach(e=>e.remove());const p=S.pos;if(!cur||!cur.rb)return;if(S.xrefTabs===false)return;const refs=((XC[p.b]||{})[p.c+'.'+p.v]||[]).slice(0,+S.xrefN||5);if(!refs.length)return;
  const h=`<div class="conn" onclick="event.stopPropagation()"><span class="dim" style="align-self:center">Cross references</span>${refs.map((r,j)=>`<button class="xc" data-j="${j}" onclick="event.stopPropagation();playAt('${META[r[0]][0]}',${r[1]},${r[2]})">${META[r[0]][0]} ${r[1]}:${r[2]}</button>`).join('')}</div><div class="dim xcr" style="font-size:11px;padding:0 6px 6px">Cross references: <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY · tap a tab to play it</div>`;
  const a=$('r'+posKey(p));a&&a.insertAdjacentHTML('afterend',h);if(S.view.b==p.b&&S.view.c==String(p.c)){const e=$('v'+p.v);e&&e.insertAdjacentHTML('afterend',h)}}
 const _rDraw=rDraw;rDraw=function(){_rDraw();drawConn()};const _drawRead=drawRead;drawRead=function(){_drawRead();drawConn()};
@@ -619,13 +619,13 @@ body.fpo #fp{transform:none;visibility:visible}#fp .hd{display:flex;align-items:
 </style>
 <div id="mini" onclick="fpOpen()"><div class="mt"><div class="mr" id="mRef">—</div><div class="ms" id="mSub">Tap to open the player</div></div>
 <button id="mPP" onclick="event.stopPropagation();toggle()" aria-label="Play or pause">▶</button><button id="mNx" onclick="event.stopPropagation();stepVerse(1)" aria-label="Next verse">⏭</button><i class="mp" id="mProg"></i></div>
-<div id="fp"><div class="hd"><button class="ib" onclick="fpClose()" aria-label="Close player">⌄</button><b>Now playing</b><button class="ib" id="fpGear" onclick="fpMenu('set')" aria-label="Settings">⚙</button></div>
+<div id="fp"><div class="hd"><button class="ib" onclick="fpClose()" aria-label="Close player">⌄</button><b>Now playing</b><button class="ib" id="fpGear" onclick="openSettings()" aria-label="Settings">⚙</button></div>
 <div id="fpRef">—</div><div id="fpSub"></div><div id="fpTxt"></div>
 <div class="scr"><span id="fpA">1</span><input type="range" id="fpSeek" min="1" max="1" value="1" aria-label="Verse"><span id="fpZ">1</span></div>
 <div class="tr"><button onclick="fpRep()" id="fpRepB" title="Repeat">🔁</button><button onclick="stepChapter(-1)" title="Previous chapter">⏮</button><button onclick="stepVerse(-1)" title="Back one verse">↺</button><button id="fpPP" onclick="toggle()">▶</button><button onclick="stepVerse(1)" title="Forward one verse">↻</button><button onclick="stepChapter(1)" title="Next chapter">⏭</button><button onclick="fpMenu('queue')" title="Up next">☰</button></div>
 <div id="dialW"><button class="ib" onclick="dialStep(-1)" aria-label="Slower">−</button><svg id="dial" viewBox="0 0 200 200" role="slider" aria-label="Speed dial" tabindex="0"><path id="dTrk" fill="none" stroke="#2a2735" stroke-width="14" stroke-linecap="round"/><path id="dArc" fill="none" stroke="#d9b65a" stroke-width="14" stroke-linecap="round"/><g id="dTicks"></g><circle id="dPtr" r="11" fill="#ece9f2" stroke="#d9b65a" stroke-width="3"/><circle cx="100" cy="100" r="56" fill="#1b1a23" stroke="#33303f"/><text id="dVal" x="100" y="108" text-anchor="middle" fill="#ece9f2" font-size="26" font-weight="600">1×</text><text id="dCap" x="100" y="128" text-anchor="middle" fill="#9a95a8" font-size="11"></text></svg><button class="ib" onclick="dialStep(1)" aria-label="Faster">+</button>
 <div class="dmax"><label class="dim">Max <input type="number" id="dMaxI" min="1" step="0.25" inputmode="decimal" style="width:70px"></label><button onclick="dialSetMax(+dMaxI.value)">Set max</button><button onclick="dialSetMax(+S.speed)" title="Use current speed as max">Max = now</button></div></div>
-<div class="tb"><button id="tbSpd" onclick="fpMenu('speed')"><b id="tbSpdV">1×</b>Speed</button><button onclick="fpMenu('voice')"><b>🗣</b>Voice</button><button id="tbSlp" onclick="fpMenu('sleep')"><b id="tbSlpV">⏾</b>Sleep</button><button onclick="fpMenu('queue')"><b>☰</b>Up next</button><button onclick="fpMenu('set')"><b>⚙</b>Settings</button></div></div>
+<div class="tb"><button id="tbSpd" onclick="fpMenu('speed')"><b id="tbSpdV">1×</b>Speed</button><button onclick="fpMenu('voice')"><b>🗣</b>Voice</button><button id="tbSlp" onclick="fpMenu('sleep')"><b id="tbSlpV">⏾</b>Sleep</button><button onclick="fpMenu('queue')"><b>☰</b>Up next</button><button onclick="openSettings()"><b>⚙</b>Settings</button></div></div>
 <div id="fpm" onclick="if(event.target==this)fpMenuClose()"><div id="fpmB"></div></div>
 <script>
 // ---- YouVersion / YouTube Music style player (build 2026101208): mini player, full player sheet, menus; drives the existing engine
@@ -669,7 +669,7 @@ function chipRow(list,curV,fn){return'<div class="chips">'+list.map(([v,t])=>`<b
 function sl(id,lab,min,max,step,v,fmtV){return`<div class="sl"><span>${lab}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${v}"><output id="${id}O">${fmtV(v)}</output></div>`}
 function tg(id,lab,sub,on){return`<label class="tg"><span>${lab}${sub?`<small>${sub}</small>`:''}</span><input type="checkbox" id="${id}" ${on?'checked':''}></label>`}
 function voiceHTML(){loadVoices();return`<select id="mVoice">${voice.innerHTML}</select>`+sl('mPitch','Pitch',.5,1.5,.1,S.pitch||1,x=>(+x).toFixed(1))+`<div class="row" style="margin-top:8px"><button onclick="testVoice()">▶ Test voice</button></div>`+(voices.length?'':'<div class="dim">No voices found. Install one in Settings › Text-to-speech, then reopen.</div>')+'<div class="dim" style="margin-top:6px">Voices come from your device. The rate follows Speed.</div>'}
-function fpMenu(k){if(fpmK!=k)fpmB.scrollTop=0;fpmK=k;const SPD=chipRow(SPEEDS.map(s=>[s,s+'×']),S.speed,'setSpeed');let h=`<div class="grab"></div><h3>${MT[k]}</h3>`;
+function fpMenu(k){if(k=='set'){fpMenuClose();return openSettings()}if(fpmK!=k)fpmB.scrollTop=0;fpmK=k;const SPD=chipRow(SPEEDS.map(s=>[s,s+'×']),S.speed,'setSpeed');let h=`<div class="grab"></div><h3>${MT[k]}</h3>`;
  if(k=='speed')h+=SPD+'<div class="dim" style="margin-top:8px">Changes apply straight away: the current phrase restarts at the new rate and the tones follow it.</div>';
  if(k=='voice')h+=voiceHTML();
  if(k=='sleep')h+=chipRow([['0','Off'],['5','5 min'],['15','15 min'],['30','30 min'],['45','45 min'],['60','1 hour'],['90','90 min'],['eoc','End of chapter']],slpEoc?'eoc':(slpEnd?'x':'0'),'sleepSet')+`<div class="dim" style="margin-top:8px">${slpEoc?'Stops after the last verse of this chapter.':slpEnd?'Stops in '+fmt((slpEnd-now())/1e3)+' (fades out over the last 45 s).':'Off.'}</div>`;
@@ -727,7 +727,7 @@ function dialSetMax(m){if(!(m>=1))m=1;m=Math.round(m/STEP)*STEP;dMax=m;localStor
  dial.addEventListener('keydown',e=>{if(e.key=='ArrowRight'||e.key=='ArrowUp'){dialStep(1);e.preventDefault()}if(e.key=='ArrowLeft'||e.key=='ArrowDown'){dialStep(-1);e.preventDefault()}});
  dial.addEventListener('wheel',e=>{e.preventDefault();dialStep(e.deltaY<0?1:-1)},{passive:false})})();
 dialTicks();dialDraw(+S.speed||1);
-// ---- background (build 2026101210): by default EVERYTHING keeps playing when hidden (words, tones, theta, echoes, auto-advance), all modes, no fade.
+// ---- background (build 2026101211): by default EVERYTHING keeps playing when hidden (words, tones, theta, echoes, auto-advance), all modes, no fade.
 // Optional S.bgTheta ('Theta only when I leave'): Night/Sleep drop to theta only while hidden. The sleep timer still stops everything.
 // The foreground service stays up for the whole session: it is only stopped when the app is visible and idle for 20 s, or when the sleep timer ends.
 let bgQ=null,ltIdle=0;window.ltSess=false;
@@ -740,5 +740,107 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){ltBgSync()
  const c=$('bgTheta');c.checked=!!S.bgTheta;c.onchange=()=>{S.bgTheta=c.checked;persist()}})();
 if(window.LT_BG)LT_BG.addListener('action',e=>{const a=e&&e.action;if(a=='toggle')toggle();else if(a=='next')stepVerse(1);else if(a=='prev')stepVerse(-1);setTimeout(ltBgSync,300)});
 setInterval(ltBgSync,3000);
+</script>
+<style>
+#ltSet{position:fixed;inset:0;z-index:30;background:#121019;display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}#ltSet.on{display:flex}
+#ltSet .sh{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #26232f}#ltSet .sh b{flex:1;font:600 19px system-ui}#ltSet .sh button{background:#ffffff10;border-radius:50%;width:44px;height:44px;padding:0;font-size:20px}
+#ltSetQ{margin:8px 12px!important;width:calc(100% - 24px)!important;border-radius:22px!important;padding:10px 16px!important}
+#ltSetB{flex:1;overflow-y:auto;padding:0 12px calc(24px + env(safe-area-inset-bottom))}
+.sc{display:flex;align-items:center;gap:14px;padding:14px 8px;border-bottom:1px solid #22202b;cursor:pointer;border-radius:10px}.sc:active{background:#ffffff0d}.sc i{font-style:normal;font-size:22px;width:30px;text-align:center}.sc span{flex:1}.sc small{display:block;color:#9a95a8;font-size:12px}.sc:after{content:'›';color:#6d6880;font-size:22px}
+.si{padding:12px 8px;border-bottom:1px solid #22202b}.si .l{display:flex;align-items:center;gap:10px}.si .l span{flex:1;font-size:15px}.si small{display:block;color:#9a95a8;font-size:12px;margin-top:2px}.si input[type=checkbox]{width:22px;height:22px;accent-color:#d9b65a}.si input[type=range]{width:100%;accent-color:#d9b65a;margin-top:6px}.si select{max-width:55vw}.si output{color:#d9b65a;font-size:13px}.si .note{color:#9a95a8;font-size:12.5px;line-height:1.5}
+body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
+</style>
+<div id="ltSet"><div class="sh"><button id="ltSetBk" onclick="setBack()" aria-label="Back">←</button><b id="ltSetT">Settings</b></div><input type="search" id="ltSetQ" placeholder="Search settings…" oninput="setDraw()"><div id="ltSetB"></div></div>
+<script>
+// ---- dedicated settings screen (build 2026101211): one source of truth (S in localStorage.lt2); every row drives the real engine control
+(function(){const D={bgPlay:true,bgTheta:false,lockCtl:true,awake:false,xf:.8,echo:true,echoVol:1,fade:45,slpDef:'0',autoNight:false,font:'georgia',lh:1.6,nums:true,xrefTabs:true,xrefN:5,hlFollow:true};
+ Object.keys(D).forEach(k=>{if(S[k]==null)S[k]=D[k]});persist();
+ const fire=(el,ev)=>{el.dispatchEvent(new Event(ev));el['on'+ev]&&el['on'+ev]()};
+ const ctl=(el,v,ev)=>{if(el.type=='checkbox')el.checked=!!v;else el.value=v;if(el['on'+ev])el['on'+ev]();else el.dispatchEvent(new Event(ev))};
+ const FONTS={georgia:['Georgia (serif)','Georgia,serif'],system:['System sans','system-ui,sans-serif'],garamond:['Garamond','Garamond,"EB Garamond",serif'],mono:['Monospace','ui-monospace,monospace']};
+ window.applyDisplay=function(){const f=(FONTS[S.font]||FONTS.georgia)[1];[rtext,fpTxt,verses].forEach(e=>{if(e){e.style.fontFamily=f;e.style.lineHeight=S.lh}});document.body.classList.toggle('lt-nonum',!S.nums);try{rTheme();drawConn()}catch(e){}fpTxt.style.fontSize=S.r.fs+'px'};
+ const sp=x=>(+x).toFixed(2).replace(/\.?0+$/,'')+'×';
+ const C=[
+ ['play','▶','Playback','Speed, auto play, chunk, repeat, crossfade',[
+  {k:'speed',l:'Speed',d:'Reading and tone pace (same as the player dial).',t:'range',min:1,max:()=>dMax,step:.25,g:()=>+S.speed,s:v=>speedTo(+v),f:sp},
+  {k:'dmax',l:'Speed dial maximum',d:'Highest value on the speed dial.',t:'num',min:1,step:.25,g:()=>dMax,s:v=>dialSetMax(+v)},
+  {k:'auto',l:'Auto play',d:'Keep going through the Bible after a range ends.',t:'chk',g:()=>S.auto,s:v=>setAuto(v)},
+  {k:'cont',l:'Continue to the next chapter',d:'Play per press "Chapter" plus auto play; on = chapter after chapter.',t:'chk',g:()=>S.auto&&S.chunk!='verse',s:v=>{setAuto(v);if(v&&S.chunk=='verse')ctl(chunk,'chap','change')}},
+  {k:'chunk',l:'Play per press',d:'How much plays for each press of play.',t:'sel',o:()=>[...chunk.options].map(o=>[o.value,o.text]),g:()=>S.chunk,s:v=>ctl(chunk,v,'change')},
+  {k:'chunkN',l:'Custom chunk size',d:'Verses per press when Play per press is Custom.',t:'num',min:1,step:1,g:()=>S.chunkN||5,s:v=>{chunkN.value=v;chunkN.onchange()}},
+  {k:'rep',l:'Repeat',d:'Off, repeat the chapter, or repeat the verse.',t:'sel',o:()=>[['off','Off'],['chapter','Chapter'],['verse','Verse']],g:()=>S.rep,s:v=>{S.rep=v;persist();if(cur&&cur.rb)schedulePre(streamTok);fpRender(1)}},
+  {k:'xf',l:'Crossfade length',d:'Overlap between verses.',t:'range',min:.1,max:3,step:.1,g:()=>S.xf,s:v=>{S.xf=XF=+v;persist()},f:x=>(+x).toFixed(1)+' s'}]],
+ ['voice','🗣','Voice and narration','Voice, pitch, narration, highlight',[
+  {k:'narr',l:'Narration',d:'Read the KJV aloud with your device voice.',t:'chk',g:()=>S.narr,s:v=>ctl(narr,v,'change')},
+  {k:'voice',l:'Voice',d:'Voices installed on this device.',t:'sel',o:()=>{loadVoices();return[...voice.options].map(o=>[o.value,o.text])},g:()=>voice.value,s:v=>{ctl(voice,v,'change');respeak()}},
+  {k:'pitch',l:'Pitch',d:'Higher or lower voice.',t:'range',min:.5,max:1.5,step:.1,g:()=>+S.pitch||1,s:v=>{S.pitch=v;if(window.vPitch)vPitch.value=v;persist();respeak()},f:x=>(+x).toFixed(1)},
+  {k:'test',l:'Test voice',d:'Speak a sample with the current voice.',t:'btn',b:'▶ Test',s:()=>testVoice()},
+  {k:'hl',l:'Highlight follows the reading',d:'Light up the phrase being spoken in the player.',t:'chk',g:()=>S.hlFollow,s:v=>{S.hlFollow=v;persist();fpHl()}}]],
+ ['sound','🔊','Sound and frequencies','Presets, volume, theta, 777, 432, echoes',[
+  {k:'pre',l:'Preset',d:'Set the whole mix in one tap.',t:'sel',o:()=>[['','(custom)'],...PRE.map((p,i)=>[String(i),p[0]+': '+p[1]])],g:()=>S.preset==null?'':String(S.preset),s:v=>{if(v!=='')preset(+v)}},
+  {k:'vol',l:'Master volume',d:'Overall output (capped at half).',t:'range',min:0,max:1,step:.01,g:()=>+S.vol,s:v=>ctl(vol,v,'input'),f:x=>Math.round(x*100)+'%'},
+  {k:'evo',l:'Evolving tone intensity',d:'Word-steered tone level.',t:'range',min:0,max:1,step:.05,g:()=>+S.tone,s:v=>ctl(evo,v,'input'),f:x=>Math.round(x*100)+'%'},
+  {k:'theta',l:'Theta beats',d:'Binaural 4-8 Hz pulse; headphones needed.',t:'chk',g:()=>S.theta,s:v=>ctl(theta,v,'change')},
+  {k:'band',l:'Theta centre and spread',d:'Where the four beats sit inside 4-8 Hz.',t:'sel',o:()=>[...band.options].map(o=>[o.value,o.text]),g:()=>band.value,s:v=>ctl(band,v,'change')},
+  {k:'s777',l:'777 Hz bright tone',d:'Soft steady layer; a symbolic choice.',t:'chk',g:()=>S.s777!==false,s:v=>ctl(s777,v,'change')},
+  {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
+  {k:'echo',l:'Cross-reference echoes',d:'Soft panned motifs for real OpenBible cross references.',t:'chk',g:()=>S.echo,s:v=>{S.echo=v;persist()}},
+  {k:'echoVol',l:'Echo volume',d:'Loudness of the echo motifs.',t:'range',min:0,max:2,step:.1,g:()=>S.echoVol,s:v=>{S.echoVol=+v;persist()},f:x=>Math.round(x*100)+'%'}]],
+ ['bg','📱','Background and lock screen','Keep playing, lock-screen controls, screen awake',[
+  {k:'bgPlay',l:'Keep playing when I leave',d:'Everything keeps playing when you switch app or lock the phone.',t:'chk',g:()=>S.bgPlay,s:v=>{S.bgPlay=v;persist()}},
+  {k:'bgTheta',l:'Theta only when I leave',d:'Night/Sleep only: drop to theta while the app is hidden.',t:'chk',g:()=>S.bgTheta,s:v=>{S.bgTheta=v;persist()}},
+  {k:'lockCtl',l:'Lock-screen controls',d:'Play, pause, next and previous on the lock screen and notification.',t:'chk',g:()=>S.lockCtl,s:v=>{S.lockCtl=v;persist();lockSync()}},
+  {k:'awake',l:'Keep screen awake',d:'Stop the screen sleeping while something plays.',t:'chk',g:()=>S.awake,s:v=>{S.awake=v;persist();awakeSync()}},
+  {k:'sam',l:'Samsung battery help',d:'',t:'note',h:'Settings → Apps → Logos Theta → Battery → <b>Unrestricted</b>; Battery → Background usage limits → add it to <b>Never sleeping apps</b>; keep its <b>notifications on</b>. The sleep timer still stops everything.'}]],
+ ['sleep','🌙','Sleep and night','Timer default, fade, night mode',[
+  {k:'slpDef',l:'Sleep timer default',d:'Started automatically when you press play.',t:'sel',o:()=>[['0','Off'],['15','15 min'],['30','30 min'],['45','45 min'],['60','1 hour'],['90','90 min']],g:()=>S.slpDef,s:v=>{S.slpDef=v;persist()}},
+  {k:'fade',l:'Fade length',d:'How long the sleep timer fades out at the end.',t:'range',min:5,max:300,step:5,g:()=>S.fade,s:v=>{S.fade=+v;persist()},f:x=>x+' s'},
+  {k:'night',l:'Night mode',d:'Dim red full-screen loop.',t:'btn',b:'🌙 Start',s:()=>{closeSettings();fpClose();nightOn()}},
+  {k:'autoNight',l:'Auto night by time',d:'Use the dim red reading theme from 21:00 to 06:00.',t:'chk',g:()=>S.autoNight,s:v=>{S.autoNight=v;persist();autoNightTick()}}]],
+ ['read','📖','Reading and display','Text size, font, spacing, theme',[
+  {k:'fs',l:'Text size',d:'Bible text and player text.',t:'range',min:12,max:32,step:2,g:()=>S.r.fs,s:v=>{S.r.fs=+v;persist();applyDisplay()},f:x=>x+'px'},
+  {k:'font',l:'Font',d:'Typeface for scripture.',t:'sel',o:()=>Object.entries(FONTS).map(([k,v])=>[k,v[0]]),g:()=>S.font,s:v=>{S.font=v;persist();applyDisplay()}},
+  {k:'lh',l:'Line spacing',d:'Space between lines.',t:'range',min:1.2,max:2.4,step:.1,g:()=>S.lh,s:v=>{S.lh=+v;persist();applyDisplay()},f:x=>(+x).toFixed(1)},
+  {k:'theme',l:'Theme',d:'Reader colours.',t:'sel',o:()=>[...rthS.options].map(o=>[o.value,o.text]),g:()=>S.r.theme,s:v=>ctl(rthS,v,'change')},
+  {k:'nums',l:'Show verse numbers',d:'Numbers beside each verse.',t:'chk',g:()=>S.nums,s:v=>{S.nums=v;persist();applyDisplay()}},
+  {k:'xrefTabs',l:'Show cross-reference tabs',d:'Tappable tabs under the current verse.',t:'chk',g:()=>S.xrefTabs,s:v=>{S.xrefTabs=v;persist();applyDisplay()}},
+  {k:'he',l:'Original text',d:'Show Torah Hebrew / NT Greek where bundled.',t:'chk',g:()=>S.r.he,s:v=>ctl(rhe,v,'change')}]],
+ ['int','🔗','Intersect','Follow the thread, cross-refs shown',[
+  {k:'thread',l:'Follow the thread',d:'Hop to the strongest unvisited cross reference.',t:'chk',g:()=>S.thread,s:v=>ctl(thread,v,'change')},
+  {k:'xrefN',l:'Cross-refs shown',d:'Tabs shown per verse (max 5 in the data).',t:'range',min:1,max:5,step:1,g:()=>S.xrefN,s:v=>{S.xrefN=+v;persist();applyDisplay()},f:x=>x}]],
+ ['data','ℹ','Data and about','Export, reset, build, licences',[
+  {k:'exp',l:'Export notes and settings',d:'Download everything as a JSON file.',t:'btn',b:'⬇ Export',s:()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({lt2:S,ltDialMax:dMax})],{type:'application/json'}));a.download='logos-theta-backup.json';a.click()}},
+  {k:'imp',l:'Import notes and settings',d:'Restore from an exported file (replaces current).',t:'btn',b:'⬆ Import',s:()=>{const i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.onchange=()=>i.files[0].text().then(t=>{const j=JSON.parse(t);if(!j.lt2)throw 0;localStorage.lt2=JSON.stringify(j.lt2);if(j.ltDialMax)localStorage.ltDialMax=j.ltDialMax;location.reload()}).catch(()=>notice('That file is not a Logos Theta backup.'));i.click()}},
+  {k:'reset',l:'Reset settings to defaults',d:'Keeps notes, highlights and progress.',t:'btn',b:'Reset…',s:()=>{if(!confirm('Reset all settings to defaults? Notes, highlights and progress are kept.'))return;['bgPlay','bgTheta','lockCtl','awake','xf','echo','echoVol','fade','slpDef','autoNight','font','lh','nums','xrefTabs','xrefN','hlFollow','speed','vol','band','theta','tone','s777','aref','pitch','narr','auto','thread','chunk','chunkN','rep','preset','voice'].forEach(k=>delete S[k]);S.r.fs=19;S.r.theme='dark';localStorage.removeItem('ltDialMax');persist();location.reload()}},
+  {k:'build',l:'Build',d:'',t:'note',h:()=>BUILD_LABEL},
+  {k:'upd',l:'Check for updates',d:'Compare with the published version.json.',t:'btn',b:'Check',s:()=>{versionCheck();notice('Checked: you are on '+BUILD+'. A banner appears if a newer build exists.')}},
+  {k:'cred',l:'Credits and licences',d:'',t:'note',h:'Cross references: <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY. Text: King James Version, public domain. Greek NT Scrivener 1894 TR (Robinson, public domain); Hebrew WLC via OSHB.'},
+  {k:'hon',l:'Honesty notes',d:'',t:'note',h:'The tones are a quiet backdrop, not a treatment; no healing claims. Theta binaural research is mixed and small. The gematria mapping is this app\'s own invention. Solfeggio numbers come from 1990s numerology. 777 Hz is symbolic. Scripture names no tuning; the 440 "Nazi plot" is a 1988 myth; 432 rests on one borderline pilot study.'}]]];
+ let page=null;
+ window.openSettings=function(){page=null;ltSetQ.value='';ltSet.classList.add('on');setDraw()};window.closeSettings=()=>ltSet.classList.remove('on');
+ window.setBack=()=>{if(page!=null||ltSetQ.value){page=null;ltSetQ.value='';setDraw()}else closeSettings()};window.setOpen=i=>{page=i;ltSetQ.value='';setDraw();ltSetB.scrollTop=0};
+ const row=(it,ci,ii)=>{const id=`ss_${it.k}`,v=it.g?it.g():null,d=it.d?`<small>${it.d}</small>`:'';
+  if(it.t=='note')return`<div class="si"><div class="l"><span>${it.l}</span></div><div class="note">${typeof it.h=='function'?it.h():it.h}</div></div>`;
+  let c='';if(it.t=='chk')c=`<input type="checkbox" id="${id}" ${v?'checked':''}>`;if(it.t=='btn')c=`<button id="${id}">${it.b}</button>`;
+  if(it.t=='sel')c=`<select id="${id}">${it.o().map(([a,b])=>`<option value="${esc(a)}" ${String(a)==String(v)?'selected':''}>${esc(b)}</option>`).join('')}</select>`;
+  if(it.t=='num')c=`<input type="number" id="${id}" min="${it.min}" step="${it.step}" value="${v}" style="width:80px">`;if(it.t=='range')c=`<output id="${id}O">${it.f(v)}</output>`;
+  return`<div class="si" data-c="${ci}" data-i="${ii}"><div class="l"><span>${it.l}${d}</span>${c}</div>${it.t=='range'?`<input type="range" id="${id}" min="${it.min}" max="${typeof it.max=='function'?it.max():it.max}" step="${it.step}" value="${v}">`:''}</div>`};
+ window.setDraw=function(){const q=ltSetQ.value.trim().toLowerCase();let h='';
+  if(q){ltSetT.textContent='Search';C.forEach(([,,n,,L],ci)=>L.forEach((it,ii)=>{if((it.l+' '+(it.d||'')+' '+n).toLowerCase().includes(q))h+=row(it,ci,ii).replace('<span>',`<span><small style="color:#d9b65a">${n}</small>`)}));h=h||'<div class="dim" style="padding:16px">No matching settings.</div>'}
+  else if(page==null){ltSetT.textContent='Settings';h=C.map(([,i,n,s],ci)=>`<div class="sc" onclick="setOpen(${ci})"><i>${i}</i><span>${n}<small>${s}</small></span></div>`).join('')}
+  else{ltSetT.textContent=C[page][2];h=C[page][4].map((it,ii)=>row(it,page,ii)).join('')}
+  ltSetB.innerHTML=h;ltSetB.querySelectorAll('.si[data-c]').forEach(r=>{const it=C[+r.dataset.c][4][+r.dataset.i],e=$('ss_'+it.k);if(!e)return;
+   if(it.t=='btn')e.onclick=()=>it.s();else if(it.t=='chk')e.onchange=()=>{it.s(e.checked);setTimeout(()=>{e.checked=!!it.g()},0)};else if(it.t=='range')e.oninput=()=>{it.s(e.value);$('ss_'+it.k+'O').textContent=it.f(e.value)};else e.onchange=()=>it.s(e.value)})};
+ window.LT_SETTINGS=C;
+ // real behaviours for the new settings
+ const _hl=fpHl;fpHl=function(){if(S.hlFollow===false){document.querySelectorAll('#fpTxt .ch.on').forEach(e=>e.classList.remove('on'));return}_hl()};
+ window.lockSync=function(){if(!('mediaSession' in navigator))return;const m=navigator.mediaSession,on=S.lockCtl!==false,H={play:()=>{if(!isOn())toggle()},pause:()=>{if(isOn())toggle()},nexttrack:()=>stepVerse(1),previoustrack:()=>stepVerse(-1),seekforward:()=>stepVerse(1),seekbackward:()=>stepVerse(-1)};Object.keys(H).forEach(k=>{try{m.setActionHandler(k,on?H[k]:null)}catch(e){}})};lockSync();
+ let aw=null;window.awakeSync=async function(){const want=S.awake&&isOn()&&!document.hidden;if(want&&!aw&&'wakeLock' in navigator){try{aw=await navigator.wakeLock.request('screen');aw.addEventListener('release',()=>{aw=null})}catch(e){}}else if(!want&&aw){aw.release().catch(()=>{});aw=null}};setInterval(awakeSync,2000);
+ let anOn=false;window.autoNightTick=function(){const h=new Date().getHours(),n=S.autoNight&&(h>=21||h<6);if(n&&!anOn){anOn=true;S._prevTheme=S.r.theme;S.r.theme='night';rTheme()}else if(!n&&anOn){anOn=false;S.r.theme=S._prevTheme||'dark';rTheme()}};setInterval(autoNightTick,60e3);autoNightTick();
+ const _tg=toggle;toggle=function(){const was=isOn();_tg.apply(this,arguments);if(!was&&+S.slpDef&&!slpEnd&&!slpEoc){setSleep(+S.slpDef);slp.value=S.slpDef}};
+ document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.bgPlay===false&&isOn())toggle()});
+ // one source of truth: hide the old scattered reader controls (font size, theme) - they now live in Settings
+ document.querySelectorAll('[onclick="rFs(-1)"],[onclick="rFs(1)"]').forEach(e=>e.style.display='none');rthS.style.display='none';
+ applyDisplay();})();
 </script>
 </body></html>
