@@ -180,7 +180,7 @@ function build(parts,beat,speed,theta,mins,droneOnly,pulseOnly){const GH=GENRES[
  let i=0,k=0;while(i<n){const [f,d,dur,f2]=ev[k%ev.length];k++;const m=Math.max(1,Math.floor(SR*dur));
   for(let j=0;j<m&&i<n;j++,i++){if(!f&&!d&&!pulseOnly)continue;const t=j/SR,e=pulseOnly?1:Math.pow(Math.sin(Math.PI*t/dur),2),b=pulseOnly?0:(f?.5*wv(w*f*TU*t):0)+(f?.2:.45)*Math.sin(w*d*TU*t)+(f2?.12*Math.sin(w*f2*TU*t):0);
    if(theta){let sl=0,sr2=0;for(let q=0;q<4;q++){sl+=Math.sin(w*CAR[q]*i/SR);sr2+=Math.sin(w*(CAR[q]+BEATS[q])*i/SR)}L[i]=e*(b+.05*sl);R[i]=e*(b+.05*sr2)}else{L[i]=R[i]=e*b}}}
- let pk=0,p=0;const fd=Math.min(mins>0?3:.6,secs/4),NZ=!!S.noise&&!pulseOnly,PAD=!pulseOnly&&S.tex!='pure',PF=(typeof BASEF=='function'?BASEF():110)*TU,PV=[[1,.35,0],[1.004,.25,1.3],[.996,.25,2.1],[1.5,.18,.7],[2,.12,2.9]];
+ let pk=0,p=0;const fd=Math.min(mins>0?3:.6,secs/4),NZ=!!S.noise&&!pulseOnly,PAD=!pulseOnly&&!droneOnly&&S.tex!='pure',PF=(typeof BASEF=='function'?BASEF():110)*TU,PV=[[1,.35,0],[1.004,.25,1.3],[.996,.25,2.1],[1.5,.18,.7],[2,.12,2.9]];
  for(i=0;i<n;i++){const t=i/SR,iso=theta?.8+.05*BEATS.reduce((a,f)=>a+(Math.sin(w*f*t)>0?1:0),0):1;p=NZ?p*.98+(Math.random()*2-1)*.02:0;
   let pd=0;if(PAD){const sw=Math.min(1,t/4);for(const[r,a,ph]of PV)pd+=a*Math.sin(w*PF*r*t+ph)*(.75+.25*Math.sin(w*.07*t+ph));pd*=.045*sw}
   const fade=pulseOnly?1:Math.min(1,t/fd,(secs-t)/fd);L[i]=(L[i]*iso+.4*p+pd)*fade;R[i]=(R[i]*iso+.4*p+pd)*fade;const a=Math.abs(L[i]),c=Math.abs(R[i]);if(a>pk)pk=a;if(c>pk)pk=c}
@@ -520,7 +520,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101218',BUILD_LABEL='build Live · 2026101218';
+const BUILD='2026101219',BUILD_LABEL='build Live · 2026101219';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -553,26 +553,36 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  const pad=[[1,-7,'triangle',.12],[1,7,'sine',.12],[1.5,-4,'sine',.07],[1.5,5,'sine',.06],[2,3,'sine',.05]].map(([r,dt,ty,l])=>{const x=ctx.createOscillator(),y=ctx.createGain();x.type=ty;x.frequency.value=F0*r;x.detune.value=dt;chG.connect(x.detune);y.gain.value=l;x.connect(y).connect(padG);x.start();return[x,r]});
  // light reverb from a synthesized decaying stereo impulse
  const conv=ctx.createConvolver(),len=Math.floor(ctx.sampleRate*2.6),ir=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2)}conv.buffer=ir;const rvG=ctx.createGain();rvG.gain.value=.28;lp.connect(conv).connect(rvG).connect(out);
- bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG,dv,pad,padG};bedTune()}
+ bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG,dv,pad,padG};mixInit();bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
 setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16*(window.ROOM&&ROOM.on&&isLive()?ROOM.g:1):0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.004:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.028:0,T,1.5);if(bed.padG)bed.padG.gain.setTargetAtTime(S.tex=='pure'?0:1,T,1)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
+// ---- ensemble (build 2026101219): bass = chord root, tenor = pad chord (I/IV/V/vi picked from the verse's rare-word tones),
+// alto = slow counter-melody through the 3 rare-word tones, soprano = word melody (cbTone). Each on its own bus (mixInit).
+const CHORDS=[['I',[1,5/4,3/2]],['IV',[4/3,5/3,2]],['V',[3/2,15/8,9/4]],['vi',[5/3,2,5/2]]];
+const foldR=(r,lo)=>{while(r>=lo*2)r/=2;while(r<lo)r*=2;return r};
+function chordFor(rel){let best=CHORDS[0],bs=1e9;CHORDS.forEach(c=>{let sc=0;rel.forEach(r=>{sc+=Math.min(...c[1].map(t=>Math.abs(Math.log2(foldR(r,1)/foldR(t,1)))))});if(sc<bs-1e-9){bs=sc;best=c}});return best}
 function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.currentTime,TU=TUNE(),vs=verseSig(orig||eng,g),f0=bed.o[0].frequency;
- // verse drone: the pupil F0 (+ sub-octave) plus the verse's 3 rarest lemmas, each pulled to the nearest consonance of F0
- f0.cancelScheduledValues(T);f0.setTargetAtTime(solfF(F0*2*TU),T,1.5);bed.o[1].frequency.setTargetAtTime(solfF(F0*TU),T,3);bed.g[0].gain.setTargetAtTime(.18,T,2);bed.g[1].gain.setTargetAtTime(.22,T,2);
- if(bed.pad)bed.pad.forEach(([x,r])=>x.frequency.setTargetAtTime(solfF(padBase()*r*TU),T,2));bed.dv.forEach((d,i)=>{const h=vs.hz[i+1];if(h)d.x.frequency.setTargetAtTime(solfF(h*2*TU),T,1.5);d.y.gain.setTargetAtTime(h?.07:0,T,2)});bed.lastVs=vs;
+ const rel=vs.hz.slice(1).map(h=>h/F0),ch=chordFor(rel),[r1,r3,r5]=ch[1];bed.chord=ch[0];
+ const bass=F0*foldR(r1,.75);f0.cancelScheduledValues(T);f0.setTargetAtTime(solfF(bass*TU),T,.8);bed.g[0].gain.setTargetAtTime(.2,T,1);bed.g[1].gain.setTargetAtTime(0,T,.5);
+ bed.chordV=[r1,r1,r3,r5,r1].map(r=>foldR(r,1));bed.chordV[4]=bed.chordV[0]*2;
+ if(bed.pad)bed.pad.forEach(([x],i)=>x.frequency.setTargetAtTime(solfF(padBase()*2*bed.chordV[i]*TU),T,1.2));
+ const cm=vs.hz.slice(1).map(h=>F0*foldR(h/F0,2.4));bed.dv.forEach((d,i)=>d.y.gain.setTargetAtTime(i==0&&cm.length?.07:0,T,1));
+ if(cm.length){const st=Math.max(1.5,dur/cm.length);cm.forEach((h,k)=>bed.dv[0].x.frequency.setTargetAtTime(solfF(h*TU),T+k*st,.35))}bed.lastVs=vs;
  cbWordsPlay(vs.ws,dur,true);
  const w=themeW(eng,refs),ord=w.map((x,i)=>[x,i]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]),tot=ord.reduce((a,x)=>a+x[0],0)||1;
  [2,3].forEach((oi,j)=>{const t=ord[j];if(t){bed.o[oi].frequency.setTargetAtTime(THEMES[t[1]][2]*TUNE(),T,3);bed.g[oi].gain.setTargetAtTime(.012+.04*t[0]/tot,T,3)}else bed.g[oi].gain.setTargetAtTime(.005,T,3)});
  const ls=w[2]+w[3];bed.lfo.frequency.setTargetAtTime(ls>.5?.2:.11,T,3);bed.lfoG.gain.setTargetAtTime(.05,T,3)}
 const gIdx=(bi,c,v)=>bi*1e6+c*1e3+v;
 // one signature note per word, spread across the verse's narration; ramped in/out (no clicks); 'Now decoding' line follows
-function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU=TUNE(),pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.13,.045,.03][j];o.frequency.value=solfF(f*TU);const ga=+S.glide||0;if(ga>0){const gt=(80+120*ga)/1000/Math.sqrt(Math.max(1,+S.speed||1)),from=(j?window.cbPrev*CONS[0]*(f/x.hz[0]):window.cbPrev)||f*TU;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(solfF(f*TU),t+gt)}if(window.ROOM&&ROOM.on)o.detune.value=ROOM.c;if(pw&&!j)o.setPeriodicWave(pw);
-   const br=(+S.glide||0)>0,ring=Math.max(len*1.8,.8),at=br?.04:.02;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+at);g.gain.exponentialRampToValueAtTime(a*.35,t+at+len*.6);g.gain.exponentialRampToValueAtTime(.0001,t+ring);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+ring+.05);o.onended=()=>{o.disconnect();g.disconnect()};
-   if(!j){const b=ctx.createOscillator(),bg=ctx.createGain();b.frequency.value=solfF(f*TU)*3;bg.gain.setValueAtTime(0,t);bg.gain.linearRampToValueAtTime(a*.12,t+.015);bg.gain.exponentialRampToValueAtTime(.0001,t+Math.min(ring,.5));b.connect(bg).connect(bed.lp);b.start(t);b.stop(t+.6);b.onended=()=>{b.disconnect();bg.disconnect()}}});window.cbPrev=x.hz[0]*TU}
+// soprano voice-leading: octave of each word note nearest the previous note (always within a tritone, so inside a 6th), kept in 330-1320 Hz
+let melPrev=0;function melLead(f){const ref=melPrev||F0*4*TUNE();let m=f;while(m<ref/1.4142)m*=2;while(m>ref*1.4142)m/=2;while(m<330)m*=2;while(m>1320)m/=2;melPrev=m;return m}
+function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU0=TUNE(),lead=melLead(x.hz[0]*TU0),TU=lead/x.hz[0],pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.13,.045,.03][j];o.frequency.value=solfF(f*TU);const ga=+S.glide||0;if(ga>0){const gt=(80+120*ga)/1000/Math.sqrt(Math.max(1,+S.speed||1)),from=(j?window.cbPrev*CONS[0]*(f/x.hz[0]):window.cbPrev)||f*TU;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(solfF(f*TU),t+gt)}if(window.ROOM&&ROOM.on)o.detune.value=ROOM.c;if(pw&&!j)o.setPeriodicWave(pw);
+   const br=(+S.glide||0)>0,ring=Math.max(len*1.8,.8),at=br?.04:.02;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+at);g.gain.exponentialRampToValueAtTime(a*.35,t+at+len*.6);g.gain.exponentialRampToValueAtTime(.0001,t+ring);o.connect(g).connect(bed.bus?bed.bus.melody.in:bed.lp);o.start(t);o.stop(t+ring+.05);o.onended=()=>{o.disconnect();g.disconnect()};
+   if(!j){const b=ctx.createOscillator(),bg=ctx.createGain();b.frequency.value=solfF(f*TU)*3;bg.gain.setValueAtTime(0,t);bg.gain.linearRampToValueAtTime(a*.12,t+.015);bg.gain.exponentialRampToValueAtTime(.0001,t+Math.min(ring,.5));b.connect(bg).connect(bed.bus?bed.bus.melody.in:bed.lp);b.start(t);b.stop(t+.6);b.onended=()=>{b.disconnect();bg.disconnect()}}});window.cbPrev=lead}
 let cbCurWs=[],cbAudio=false;
-function cbWordsPlay(ws,dur,audio){window.cbPrev=BASEF()*TUNE();const tok=++cbTok,n=Math.min(ws.length,120);cbCurWs=ws;cbAudio=audio;if(!n){cbShow(null);return}if(window.rsvpDrives&&rsvpDrives())return;const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05;
+function cbWordsPlay(ws,dur,audio){window.cbPrev=0;const tok=++cbTok,n=Math.min(ws.length,120);cbCurWs=ws;cbAudio=audio;if(!n){cbShow(null);return}if(window.rsvpDrives&&rsvpDrives())return;const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05;
  for(let k=0;k<n;k++){const x=ws[k],t=t0+k*step;setTimeout(()=>{if(tok==cbTok&&(playing||nmA)){cbShow(x);if(x.key)window.LT_TONE={hz:x.hz[0]*TUNE(),p:x.hz.map(f=>f*TUNE()),t:performance.now()}}},(t-ctx.currentTime)*1000);
   if(!audio||!x.key)continue;cbTone(x,t,Math.min(step*.9,1.2))}}
 function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===false?'none':'';if(!x){e.textContent='';return}
@@ -584,7 +594,7 @@ function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===fa
 async function refTones(r){try{const b=META[r[0]][0],bk=await getBook(b),t=bk.c[r[1]-1][r[2]-1]||'';return verseSig(t,gIdxG(b,r[1],r[2])).hz.slice(1)}catch(e){return[]}}
 function meet(mine,theirs,dir,len){window.LT_MEET={dir,t:performance.now(),len,hz:theirs[0]||F0};if(!bed||!ctx.createStereoPanner)return;const t=ctx.currentTime+.05,TU=TUNE(),ev=(S.echoVol!=null?+S.echoVol:1)*.1;
  const voice=(f,from,to,up)=>{const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createStereoPanner();o.frequency.value=f*2*TU;p.pan.setValueAtTime(from,t);p.pan.linearRampToValueAtTime(to,t+len);
-  g.gain.setValueAtTime(up?0:ev,t);g.gain.linearRampToValueAtTime(up?ev:0,t+len);g.gain.linearRampToValueAtTime(0,t+len+.4);o.connect(g).connect(p).connect(bed.lp);o.start(t);o.stop(t+len+.5);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect()}};
+  g.gain.setValueAtTime(up?0:ev,t);g.gain.linearRampToValueAtTime(up?ev:0,t+len);g.gain.linearRampToValueAtTime(0,t+len+.4);o.connect(g).connect(p).connect(bed.bus?bed.bus.xref.in:bed.lp);o.start(t);o.stop(t+len+.5);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect()}};
  voice(F0,0,0,true);mine.forEach(f=>voice(f,-dir,dir*.0,false));theirs.forEach(f=>voice(f,dir,0,true))}
 function echoes(b,c,v,dur,refs){if(S.echo===false)return;const tok=++echoTok,me=gIdx(META.findIndex(m=>m[0]==b),c,v),top=refs.slice(0,3);
  top.forEach((r,j)=>setTimeout(async()=>{if(tok!=echoTok||!(playing||nmA))return;const th=await refTones(r);if(tok!=echoTok)return;const mine=(bed&&bed.lastVs?bed.lastVs.hz.slice(1):[]);
@@ -852,6 +862,14 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'s777',l:'777 Hz bright tone',d:'Soft steady layer; a symbolic choice.',t:'chk',g:()=>S.s777!==false,s:v=>ctl(s777,v,'change')},
   {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
   {k:'decode',l:'Show "Now decoding" line',d:'In the full player: the current word, its lemma, how often it occurs, its first mention, and its tone.',t:'chk',g:()=>S.decode!==false,s:v=>{S.decode=v;persist();cbShow(null)}},
+  {k:'mixh',l:'Mixer',t:'note',h:'Levels per section, balanced by perceived loudness at 100%. Bass: the centre/chord root (centre). Pad: the chord (wide). Counter-melody: the verse\'s rare words (left). Melody: the word tones (right). Theta: binaural layers and 777. Cross-refs: the meetings (from the sides).'},
+  {k:'mix_bass',l:'Bass',t:'range',min:0,max:2,step:.05,g:()=>S.mix.bass==null?1:+S.mix.bass,s:v=>{S.mix.bass=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
+  {k:'mix_pad',l:'Pad',t:'range',min:0,max:2,step:.05,g:()=>S.mix.pad==null?1:+S.mix.pad,s:v=>{S.mix.pad=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
+  {k:'mix_counter',l:'Counter-melody',t:'range',min:0,max:2,step:.05,g:()=>S.mix.counter==null?1:+S.mix.counter,s:v=>{S.mix.counter=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
+  {k:'mix_melody',l:'Melody',t:'range',min:0,max:2,step:.05,g:()=>S.mix.melody==null?1:+S.mix.melody,s:v=>{S.mix.melody=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
+  {k:'mix_theta',l:'Theta',t:'range',min:0,max:2,step:.05,g:()=>S.mix.theta==null?1:+S.mix.theta,s:v=>{S.mix.theta=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
+  {k:'mix_xref',l:'Cross-refs',t:'range',min:0,max:2,step:.05,g:()=>S.mix.xref==null?1:+S.mix.xref,s:v=>{S.mix.xref=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
+  {k:'mixb',l:'Balanced',d:'Reset all mixer levels to the balanced mix.',t:'btn',b:'Reset',s:()=>{S.mix={};persist();mixApply();setDraw()}},
   {k:'tex',l:'Texture',d:'Pad: a warm, slow, detuned pad on the centre, fifth and octave under the words. Pure tones: only the word tones and drone.',t:'sel',o:()=>[['pad','Pad (default)'],['pure','Pure tones']],g:()=>S.tex||'pad',s:v=>{S.tex=v;persist();nSegs={};rerender()}},
   {k:'noise',l:'Add noise',d:'Off by default. Adds a soft brown-noise bed to the background carrier.',t:'chk',g:()=>!!S.noise,s:v=>{S.noise=v;persist();nSegs={};rerender()}},
   {k:'mode',l:'Tone mode',d:'Word: the pure codebook tones from the text on the 110 Hz centre (432-scaled if that toggle is on), no live modifiers. Live: the same tones with Room listening and Your baseline applied.',t:'sel',o:()=>[['word','Word (default)'],['live','Live']],g:()=>S.mode||'word',s:v=>setMode(v)},
@@ -1018,7 +1036,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
 
 // ---- Your baseline (build 2026101216): personal F0 from a hum (autocorrelation, in memory only) or a slider
 window.noteName=f=>{const n=Math.round(12*Math.log2(f/440))+69;return['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'][n%12]+(Math.floor(n/12)-1)};
-window.baseApply=function(){F0=BASEF();if(window.bed&&ctx){const T=ctx.currentTime,TU=TUNE();bed.o[0].frequency.setTargetAtTime(F0*2*TU,T,1);bed.o[1].frequency.setTargetAtTime(F0*TU,T,1);if(bed.pad)bed.pad.forEach(([x,r])=>x.frequency.setTargetAtTime(solfF(padBase()*r*TU),T,1.5))}nSegs={};try{const p=$('baseHzO');p&&(p.textContent=Math.round(S.baseHz)+' Hz · '+noteName(S.baseHz))}catch(e){}};
+window.baseApply=function(){F0=BASEF();if(window.bed&&ctx){const T=ctx.currentTime,TU=TUNE();bed.o[0].frequency.setTargetAtTime(F0*2*TU,T,1);bed.o[1].frequency.setTargetAtTime(F0*TU,T,1);if(bed.pad)bed.pad.forEach(([x,r],i)=>x.frequency.setTargetAtTime(solfF(padBase()*2*(bed.chordV?bed.chordV[i]:r)*TU),T,1.5))}nSegs={};try{const p=$('baseHzO');p&&(p.textContent=Math.round(S.baseHz)+' Hz · '+noteName(S.baseHz))}catch(e){}};
 function acf(b,sr){let rms=0;for(const v of b)rms+=v*v;rms=Math.sqrt(rms/b.length);if(rms<.01)return 0;const mn=Math.floor(sr/500),mx=Math.floor(sr/50);let best=0,bl=0;
  for(let l=mn;l<=mx;l++){let c=0;for(let i=0;i+l<b.length;i++)c+=b[i]*b[i+l];if(c>best){best=c;bl=l}}return bl?sr/bl:0}
 window.acfPitch=acf;
@@ -1085,5 +1103,24 @@ document.querySelector('.rsb').insertAdjacentHTML('beforeend','<button id="modeB
  setInterval(()=>{if(on){voiceGate();if(visC.classList.contains('show'))visUi()}},1000);
 })();
 if(S.tab=='vis')setTimeout(()=>visSet(true),0);
+
+// ---- Mixer (build 2026101219): one bus per section, balanced by A-weighted loudness, own EQ carve-out and stereo position
+const MIXK=[['bass','Bass'],['pad','Pad'],['counter','Counter-melody'],['melody','Melody'],['theta','Theta'],['xref','Cross-refs']];
+const BAL={bass:2.6,pad:1.27,counter:2.67,melody:1.64,theta:.89,xref:1.09};   // calibrated offline: A-weighted RMS within ±3 dB; bass/theta then eased 2/2 dB toward an ISO-226 (~60 phon) curve, since A-weighting over-penalises lows
+if(!S.mix)S.mix={};
+function mixInit(){const B=bed.bus={},F=(t,f,q,g)=>{const x=ctx.createBiquadFilter();x.type=t;x.frequency.value=f;if(q!=null)x.Q.value=q;if(g!=null)x.gain.value=g;return x};
+ const mk=(k,eqs,pan,dest)=>{const i=ctx.createGain();let n=i;eqs.forEach(e=>{n.connect(e);n=e});if(pan!=null&&ctx.createStereoPanner){const p=ctx.createStereoPanner();p.pan.value=pan;n.connect(p);n=p}n.connect(dest);B[k]={in:i}};
+ mk('bass',[F('lowpass',320,.6),F('highpass',40,.7)],0,bed.lp);
+ mk('pad',[F('highpass',80,.7),F('peaking',900,1,-4),F('peaking',2500,1,-3)],null,bed.lp);
+ mk('counter',[F('highpass',220,.7),F('peaking',1800,1,-3)],-.3,bed.lp);
+ mk('melody',[F('highpass',300,.7),F('peaking',200,1,-6)],.2,bed.lp);
+ mk('xref',[F('highpass',180,.7)],null,bed.lp);
+ mk('theta',[],null,gain);
+ bed.o[0].type='triangle';bed.g[0].disconnect();bed.g[0].connect(B.bass.in);bed.g[1].disconnect();bed.g[1].gain.value=0;
+ [2,3].forEach(i=>{bed.g[i].disconnect();bed.g[i].connect(B.pad.in)});bed.padG.disconnect();
+ bed.pad.forEach(([x],i)=>{x.disconnect();const y=ctx.createGain();y.gain.value=[.12,.12,.07,.06,.05][i];x.connect(y);if(ctx.createStereoPanner){const pn=ctx.createStereoPanner();pn.pan.value=[-.7,.7,-.35,.35,0][i];y.connect(pn).connect(bed.padG)}else y.connect(bed.padG)});bed.padG.connect(B.pad.in);
+ bed.dv.forEach(d=>{d.y.disconnect();d.y.connect(B.counter.in)});
+ bed.thG.disconnect();bed.thG.connect(B.theta.in);bed.g7.disconnect();bed.g7.connect(B.theta.in);mixApply()}
+window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK.forEach(([k])=>{const v=S.mix[k]==null?1:+S.mix[k];bed.bus[k].in.gain.setTargetAtTime(BAL[k]*v,T,.02)})};
 </script>
 </body></html>
