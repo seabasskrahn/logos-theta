@@ -488,9 +488,18 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101211',BUILD_LABEL='build Settings · 2026101211';
+const BUILD='2026101212',BUILD_LABEL='build Live · 2026101212';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
+
+// ---- live updates: poll version.json every 60s (no-store); auto-reload onto a new build (waits while speech is playing); refresh button in the app
+(function(){let pend=null;const go=b=>{location.replace(location.pathname+'?v='+b+location.hash)};
+ async function poll(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(String(j.build)!==BUILD)pend=String(j.build)}catch(e){}
+  if(pend&&!(window.speechSynthesis&&speechSynthesis.speaking))go(pend)}
+ setInterval(poll,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+ if(window.LT_NATIVE){const b=document.createElement('button');b.textContent='\u21bb';b.title='Refresh';b.setAttribute('aria-label','Refresh');
+  b.style.cssText='position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:9999;width:40px;height:40px;border-radius:50%;border:1px solid #d9b65a;background:#141218cc;color:#d9b65a;font-size:20px;opacity:.7';
+  b.onclick=()=>go(Date.now());(document.body?Promise.resolve():new Promise(r=>addEventListener('DOMContentLoaded',r))).then(()=>document.body.appendChild(b))}})();
 // ---- the Intersect: evolving tone bed, cross-reference echoes, connections strip, follow the thread
 if(!['5','6','7'].includes(String(S.band)))S.band='6';if(S.tone===undefined)S.tone=.5;if(!S.visited)S.visited={};
 const XC={};async function cachedJSON(url,cn){let r;try{const c=await caches.open(cn);r=await c.match(url);if(!r){r=await fetch(url);if(r.ok)c.put(url,r.clone())}}catch(e){r=await fetch(url)}if(!r.ok)throw Error('load '+url);return r.json()}
