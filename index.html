@@ -127,7 +127,7 @@ const grkNorm=w=>w.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const hebCons=w=>w.replace(/[^\u05D0-\u05EA]/g,'');
 // ---- The Eye (build 2026101215, Matthew 6:22): one centre F0 (pupil); word = just ratio x octave (iris); companions = two
 // partials snapped to consonances (lids). See SONOLUMINA_ALGORITHM.md. Entry: [step,octave,c1,c2,count,first].
-const F0=110,JUST=[1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8],JUSTS=['1/1','16/15','9/8','6/5','5/4','4/3','45/32','3/2','8/5','5/3','9/5','15/8'],CONS=[1,5/4,4/3,3/2,2];
+let F0=110;const BASEF=()=>S.base&&S.baseHz?S.baseHz/TUNE():110,JUST=[1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8],JUSTS=['1/1','16/15','9/8','6/5','5/4','4/3','45/32','3/2','8/5','5/3','9/5','15/8'],CONS=[1,5/4,4/3,3/2,2];
 const consSnap=r=>{let o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let bi=0;CONS.forEach((c,i)=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/CONS[bi])))bi=i});return CONS[bi]*o};
 // instruments: book genre -> harmonic recipe for the word-tone waveform
 const GENRES=[['Law',[1,.5,.25,.12]],['History',[1,0,.11,0,.04]],['Poetry/Wisdom',[1,.18]],['Prophets',[1,.55,.38,.26,.18,.12]],['Gospels',[1]],['Epistles',[1,0,.33,0,.18,0,.08]],['Apocalyptic',[1,.25,0,.4,0,.3,0,.2]]];
@@ -135,7 +135,7 @@ const genreOf=b=>{const i=META.findIndex(m=>m[0]==b);return i<0?4:i<5?0:i<17?1:i
 const PW={};function genreWave(g){if(!ctx)return null;if(!PW[g]){const h=GENRES[g][1],re=new Float32Array(h.length+1),im=new Float32Array(h.length+1);h.forEach((a,i)=>im[i+1]=a);PW[g]=ctx.createPeriodicWave(re,im)}return PW[g]}
 const curBook=()=>(S.pos&&S.pos.b)||(cur&&(cur.b||cur.rb))||'Genesis';
 function placeOf(w,g){const P=CB.places;if(!P||g==null)return null;const k=String(w).toLowerCase().replace(/[^a-z]/g,'');const L=P[k];if(!L)return null;const e=L.find(x=>x[3].includes(g));return e?{name:e[0],type:e[1],modern:e[2]}:null}
-function cbLook(raw,g){let k,d,lang,w=raw;const h=hebCons(raw),gk=h?'':grkNorm(raw);
+function cbLook(raw,g){F0=BASEF();let k,d,lang,w=raw;const h=hebCons(raw),gk=h?'':grkNorm(raw);
  if(h){lang='heb';d=CB.heb;w=h;k=d&&d.forms[h]}else if(gk){lang='grk';d=CB.grk;k=d&&d.forms[gk];w=raw.replace(/[^\u0370-\u03FF\u1F00-\u1FFF]/g,'')}else{lang='eng';d=CB.eng;k=engStem(raw);w=raw.replace(/[^A-Za-z']/g,'')}
  const x=d&&k&&d.lex[k];if(!x)return{w,lang,key:null,place:lang=='eng'?placeOf(w,g):null};const f=F0*JUST[x[0]]*Math.pow(2,x[1]);
  return{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[5]!=null?x[4]:x[3],first:x[5]!=null?x[5]:x[4],ratio:JUSTS[x[0]],oct:x[1],hz:[f,f*CONS[x[2]],f*CONS[x[3]]],place:lang=='eng'?placeOf(w,g):null}}
@@ -558,10 +558,10 @@ function bedSteer(orig,eng,dur,refs,g){bedInit();if(!bed)return;const T=ctx.curr
  const ls=w[2]+w[3];bed.lfo.frequency.setTargetAtTime(ls>.5?40:7.83,T,3);bed.lfoG.gain.setTargetAtTime(ls>.5?.04:.08,T,3)}
 const gIdx=(bi,c,v)=>bi*1e6+c*1e3+v;
 // one signature note per word, spread across the verse's narration; ramped in/out (no clicks); 'Now decoding' line follows
-function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU=TUNE(),pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;if(window.ROOM&&ROOM.on)o.detune.value=ROOM.c;if(pw&&!j)o.setPeriodicWave(pw);
-   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.05);g.gain.setValueAtTime(a,t+len*.5);g.gain.linearRampToValueAtTime(0,t+len);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+len+.05);o.onended=()=>{o.disconnect();g.disconnect()}})}
+function cbTone(x,t,len){if(!bed||!x||!x.key)return;const TU=TUNE(),pw=genreWave(genreOf(curBook()));window.LT_TONE={hz:x.hz[0]*TU,p:x.hz.map(f=>f*TU),t:performance.now()};x.hz.forEach((f,j)=>{if(j&&f==x.hz[0])return;const o=ctx.createOscillator(),g=ctx.createGain(),a=[.3,.1,.06][j];o.frequency.value=f*TU;const ga=+S.glide||0;if(ga>0){const gt=(80+120*ga)/1000/Math.sqrt(Math.max(1,+S.speed||1)),from=(j?window.cbPrev*CONS[0]*(f/x.hz[0]):window.cbPrev)||f*TU;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(f*TU,t+gt)}if(window.ROOM&&ROOM.on)o.detune.value=ROOM.c;if(pw&&!j)o.setPeriodicWave(pw);
+   const br=(+S.glide||0)>0;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(br?a*.6:a,t+.05);if(br)g.gain.linearRampToValueAtTime(a,t+len*.4);g.gain.setValueAtTime(a,t+len*.5);g.gain.linearRampToValueAtTime(0,t+len);o.connect(g).connect(bed.lp);o.start(t);o.stop(t+len+.05);o.onended=()=>{o.disconnect();g.disconnect()}});window.cbPrev=x.hz[0]*TU}
 let cbCurWs=[],cbAudio=false;
-function cbWordsPlay(ws,dur,audio){const tok=++cbTok,n=Math.min(ws.length,120);cbCurWs=ws;cbAudio=audio;if(!n){cbShow(null);return}if(window.rsvpDrives&&rsvpDrives())return;const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05;
+function cbWordsPlay(ws,dur,audio){window.cbPrev=BASEF()*TUNE();const tok=++cbTok,n=Math.min(ws.length,120);cbCurWs=ws;cbAudio=audio;if(!n){cbShow(null);return}if(window.rsvpDrives&&rsvpDrives())return;const step=Math.max(.25,dur/n),t0=ctx.currentTime+.05;
  for(let k=0;k<n;k++){const x=ws[k],t=t0+k*step;setTimeout(()=>{if(tok==cbTok&&(playing||nmA)){cbShow(x);if(x.key)window.LT_TONE={hz:x.hz[0]*TUNE(),p:x.hz.map(f=>f*TUNE()),t:performance.now()}}},(t-ctx.currentTime)*1000);
   if(!audio||!x.key)continue;cbTone(x,t,Math.min(step*.9,1.2))}}
 function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===false?'none':'';if(!x){e.textContent='';return}
@@ -842,6 +842,10 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
   {k:'decode',l:'Show "Now decoding" line',d:'In the full player: the current word, its lemma, how often it occurs, its first mention, and its tone.',t:'chk',g:()=>S.decode!==false,s:v=>{S.decode=v;persist();cbShow(null)}},
   {k:'room',l:'Room listening',d:'Off by default. Uses the microphone only to sense audible sound in the room (hum, fans, voices) and nudge the tones (at most a quarter-tone) toward calm intervals with it, and the level with room loudness. Nothing is recorded, stored or uploaded; analysis happens in memory and stops when you turn it off or leave the page.',t:'chk',g:()=>!!S.room,s:v=>{S.room=v;persist();v?roomStart():roomStop()}},
+  {k:'base',l:'Your baseline',d:'Off by default. Replaces the 110 Hz centre with your own base note; every word ratio scales from it. It tunes to the note you hum or pick; it cannot read frequencies in your mind or body. Humming uses the microphone for 3 seconds of pitch analysis in memory only: nothing is recorded or uploaded.',t:'chk',g:()=>!!S.base,s:v=>{S.base=v;if(!S.baseHz)S.baseHz=110;persist();baseApply()}},
+  {k:'hum',l:'Hum to set',d:'Hum a steady comfortable note for 3 seconds.',t:'btn',b:'🎙 Hum',s:()=>humSet()},
+  {k:'baseHz',l:'Base note',d:'55-440 Hz.',t:'range',min:55,max:440,step:1,g:()=>S.baseHz||110,s:v=>{S.baseHz=+v;persist();baseApply()},f:x=>Math.round(x)+' Hz · '+noteName(+x)},
+  {k:'glide',l:'Glide amount',d:'Each word slides in from the previous pitch (from your base at a verse start) over 80-200 ms, faster at higher speeds, with a soft swell. 0 = no glide.',t:'range',min:0,max:1,step:.05,g:()=>+S.glide||0,s:v=>{S.glide=+v;persist()},f:x=>Math.round(x*100)+'%'},
   {k:'echo',l:'Cross-reference echoes',d:'Soft panned motifs for real OpenBible cross references.',t:'chk',g:()=>S.echo,s:v=>{S.echo=v;persist()}},
   {k:'echoVol',l:'Echo volume',d:'Loudness of the echo motifs.',t:'range',min:0,max:2,step:.1,g:()=>S.echoVol,s:v=>{S.echoVol=+v;persist()},f:x=>Math.round(x*100)+'%'}]],
  ['bg','📱','Background and lock screen','Keep playing, lock-screen controls, screen awake',[
@@ -994,5 +998,19 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  document.addEventListener('visibilitychange',()=>{if(document.hidden){if(ROOM.on)roomStop()}else if(S.room)roomStart()});
  if(S.room)S.room=false;  // never auto-open the mic on load; the user turns it on each session
 })();
+
+// ---- Your baseline (build 2026101216): personal F0 from a hum (autocorrelation, in memory only) or a slider
+window.noteName=f=>{const n=Math.round(12*Math.log2(f/440))+69;return['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'][n%12]+(Math.floor(n/12)-1)};
+window.baseApply=function(){F0=BASEF();if(window.bed&&ctx){const T=ctx.currentTime,TU=TUNE();bed.o[0].frequency.setTargetAtTime(F0*2*TU,T,1);bed.o[1].frequency.setTargetAtTime(F0*TU,T,1)}nSegs={};try{const p=$('baseHzO');p&&(p.textContent=Math.round(S.baseHz)+' Hz · '+noteName(S.baseHz))}catch(e){}};
+function acf(b,sr){let rms=0;for(const v of b)rms+=v*v;rms=Math.sqrt(rms/b.length);if(rms<.01)return 0;const mn=Math.floor(sr/500),mx=Math.floor(sr/50);let best=0,bl=0;
+ for(let l=mn;l<=mx;l++){let c=0;for(let i=0;i+l<b.length;i++)c+=b[i]*b[i+l];if(c>best){best=c;bl=l}}return bl?sr/bl:0}
+window.acfPitch=acf;
+window.humSet=async function(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return notice('Microphone is not available in this browser.');ensureCtx();let st;
+ try{st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})}catch(e){return notice('Humming needs microphone permission.')}
+ notice('Listening… hum a steady note for 3 seconds.');const src=ctx.createMediaStreamSource(st),an=ctx.createAnalyser();an.fftSize=4096;src.connect(an);const b=new Float32Array(an.fftSize),ps=[];
+ await new Promise(r=>{const iv=setInterval(()=>{an.getFloatTimeDomainData(b);const f=acf(b,ctx.sampleRate);if(f>=55&&f<=440)ps.push(f)},100);setTimeout(()=>{clearInterval(iv);r()},3000)});
+ src.disconnect();st.getTracks().forEach(t=>t.stop());if(ps.length<5)return notice('No steady hum heard; try again a little louder, or use the slider.');
+ ps.sort((a,b)=>a-b);S.baseHz=Math.round(ps[ps.length>>1]*10)/10;S.base=true;persist();baseApply();notice('Your base note: '+Math.round(S.baseHz)+' Hz ('+noteName(S.baseHz)+').')};
+baseApply();
 </script>
 </body></html>
