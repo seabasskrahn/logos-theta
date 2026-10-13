@@ -1156,9 +1156,11 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
  window.scoreVerse=function(vs,dur,eng){if(sty()=='pure'||!bed||!bed.bus)return;duckInit();const T0=ctx.currentTime+.06,TU=TUNE(),B=bed.bus,K=F0*TU;
   // silence the old sustained sine layers (Pure style uses them)
   [bed.g[0],bed.g[2],bed.g[3]].concat(bed.dv.map(d=>d.y)).forEach(g=>g.gain.setTargetAtTime(0,T0,.3));
-  const sp=Math.min(2,Math.max(.75,+S.speed||1)),beat0=60/(66*sp),nb=Math.max(1,Math.round(dur/(4*beat0))),bar=dur/nb,beat=bar/4;
+  const sp=Math.min(2,Math.max(.75,+S.speed||1)),beat0=60/(66*sp),nb=Math.max(2,Math.round(dur/(4*beat0))),bar=dur/nb,beat=bar/4;
   const rel=vs.hz.slice(1).map(h=>h/F0);let c0='I',bs=1e9;RING.forEach(c=>{let sc=0;rel.forEach(r=>{sc+=Math.min(...CH[c].map(t=>Math.abs(Math.log2(reg(r,1)/reg(t,1)))))});if(sc<bs-1e-9){bs=sc;c0=c}});
-  const i0=RING.indexOf(c0),prog=[...Array(nb)].map((_,b)=>RING[(i0+b)%4]);if(nb>=2)prog[nb-1]='I';if(nb>=3)prog[nb-2]='V';
+  // Resolution rule: every verse closes with a cadence, V-I (authentic) normally, IV-I (plagal, 'Amen') at a chapter end
+  let chEndV=false;try{const p=S.pos;chEndV=!!(p&&MB[p.b]&&p.v>=MB[p.b][2][p.c-1])}catch(e){}
+  const i0=RING.indexOf(c0),prog=[...Array(nb)].map((_,b)=>RING[(i0+b)%4]);prog[nb-1]='I';prog[nb-2]=chEndV?'IV':'V';if(nb>2&&prog[nb-3]==prog[nb-2])prog[nb-3]=chEndV?'vi':'IV';
   const S_=x=>solfF(x);
   prog.forEach((c,b)=>{const t=T0+b*bar,ct=CH[c].map(r=>K*r);
    cello(B.bass.in,S_(reg(ct[0],65)),t,bar*.96,.22);
@@ -1171,6 +1173,15 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
   ws.forEach((x,k)=>{if(!x.key||x.n>=200)return;let t=k/n*dur;const q=Math.round(t/(beat/2))*(beat/2);const slot=Math.round(q/beat);if(used.has(slot))return;if(rest.some(r=>q>r-.05&&q<r+beat*.9))return;if(q>dur-beat*.5)return;used.add(slot);
    let f=snap(x.hz[0]*TU,K),ref=melPrevS||LO*1.3;while(f<ref/1.4142)f*=2;while(f>ref*1.4142)f/=2;while(f<LO)f*=2;while(f>HI)f/=2;melPrevS=f;notes.push([q,f,Math.min(1,.6+40/(x.n+40))])});
   if(sty()=='ambient')notes=notes.filter((_,i)=>i%2==0);
+  // Resolution rule: notes ending a phrase (just before punctuation) pull to the nearest chord tone; any other non-chord tone
+  // is followed within half a beat by a stepwise resolution to the nearest chord tone
+  const chordAt=q=>CH[prog[Math.min(nb-1,Math.floor(q/bar))]].map(r=>K*r),pc=f=>{let r=f/K;while(r>=2)r/=2;while(r<1)r*=2;return r};
+  const nearCT=(f,q)=>{let best=f,bd=1e9;chordAt(q).forEach(c=>{for(let o=-3;o<=3;o++){const g=c*Math.pow(2,o),d=Math.abs(Math.log2(g/f));if(d<bd){bd=d;best=g}}});return best};
+  const isCT=(f,q)=>chordAt(q).some(c=>Math.abs(Math.log2(pc(f)/pc(c)))<.01||Math.abs(Math.abs(Math.log2(pc(f)/pc(c)))-1)<.01);
+  notes.sort((a,b)=>a[0]-b[0]);const add=[];
+  notes.forEach((nt,i)=>{const [q,f]=nt,phraseEnd=rest.some(r=>r>=q&&r-q<beat*1.1);if(phraseEnd){nt[1]=nearCT(f,q);return}
+   if(!isCT(f,q)){const nx=notes[i+1],rq=q+beat/2;if(nx&&nx[0]-q<=beat&&isCT(nx[1],nx[0])&&Math.abs(Math.log2(nx[1]/f))<.25)return;if(rq<dur-beat*.6&&!(nx&&nx[0]<=rq+.01))add.push([rq,nearCT(f,rq),nt[2]*.8]);else nt[1]=nearCT(f,q)}});
+  notes=notes.concat(add).sort((a,b)=>a[0]-b[0]);
   // cadence: end on the final chord's root
   if(nb>=1){let f=reg(CH[prog[nb-1]][0]*K,LO),ref=melPrevS||f;while(f<ref/1.4142&&f*2<=HI)f*=2;while(f>ref*1.4142&&f/2>=LO)f/=2;notes.push([dur-beat*.5,f,.8]);melPrevS=f}
   notes.forEach(([q,f,v])=>celesta(B.melody.in,S_(f),T0+q,.16*v));
