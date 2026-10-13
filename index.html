@@ -169,7 +169,7 @@ function nStart(i){ensureCtx();const t=rendered.t,n=t.engParts.length;if(i>=n){n
  document.querySelectorAll('.spk').forEach(e=>e.classList.remove('spk'));const x=ALL[IDX[k]];if(x&&S.view.b==x.b&&S.view.c==x.c){const e=$('v'+x.v);e&&e.classList.add('spk')}const re=k&&$('r'+k);re&&re.classList.add('spk');
  const txt=t.engParts[i]||'';if(night)nv.textContent=txt;const go=()=>{if(tok==nTok&&playing)nStart(i+1)};
  // safety net if a browser drops onend, or stops speaking while the screen is locked: advance on a word-count estimate
- const rt=vRate();const est=()=>{if(!document.hidden&&SS.speaking){nTimer=setTimeout(est,1000);return}go()};nTimer=setTimeout(est,(txt.split(/\s+/).length*0.45/rt+2)*1000);speakChunks(txt,go);upd();if(i+1<n)setTimeout(()=>{if(tok==nTok)nSeg(i+1)},50)}
+ const rt=vRate();const est=()=>{if(SS.speaking&&(!document.hidden||window.LT_NATIVE)){nTimer=setTimeout(est,1000);return}go()};nTimer=setTimeout(est,(txt.split(/\s+/).length*0.45/rt+2)*1000);speakChunks(txt,go);upd();if(i+1<n)setTimeout(()=>{if(tok==nTok)nSeg(i+1)},50)}
 function nPause(){offset=rendered.marks[nIdx]||0;nStop();playing=false;pp.textContent="▶";upd()}
 const verseAt=o=>{const m=rendered.marks,p=o%(rendered.pass||1e9);let i=0;while(i+1<m.length&&m[i+1]<=p)i++;return i};
 // ---- player: AudioBuffer with real seek / pause / resume
@@ -269,7 +269,7 @@ async function flToggle(){const on=flash.style.display!='block';flStop();if(on&&
 // ---- sleep timer: fade over last 45 s, then stop audio + narration
 let slpEnd=0,slpI=null;function setSleep(m){clearInterval(slpI);slpEnd=m?now()+m*60e3:0;if(gain)gain.gain.value=+S.vol;slpS.textContent='';if(!m)return;
  slpI=setInterval(()=>{const r=(slpEnd-now())/1e3;if(ctx&&ctx.state=='suspended'&&playing)ctx.resume();slpS.textContent=' '+fmt(r)+' left';if(gain&&r<45)gain.gain.value=+S.vol*Math.max(0,r/45);
-  if(r<=0){clearInterval(slpI);streamTok++;pause();spkStop();slpEnd=0;slp.value='0';slpS.textContent=' stopped';setTimeout(()=>{if(gain)gain.gain.value=+S.vol},500)}},500)}
+  if(r<=0){clearInterval(slpI);streamTok++;pause();spkStop();if(typeof prayStop=='function'&&prOn&&!prayM)prayStop();window.ltSess=false;if(window.LT_BG)LT_BG.stop().catch(()=>{});slpEnd=0;slp.value='0';slpS.textContent=' stopped';setTimeout(()=>{if(gain)gain.gain.value=+S.vol},500)}},500)}
 // ---- verse of the day (deterministic by date; prefers due + highlighted)
 function drawVotd(){const d=new Date().toDateString();if(S.votdX==d){votd.innerHTML='';return}const pool=new Set(Object.keys(S.hl));
  Object.entries(S.srs).forEach(([k,p])=>{if(p.due&&p.due<=now()&&k[0]!='c'){const s=selOfKey(k);for(let v=s.a;v<=s.z;v++)pool.add(s.b+'.'+s.c+'.'+v)}});
@@ -488,7 +488,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101209',BUILD_LABEL='build Dial · 2026101209';
+const BUILD='2026101210',BUILD_LABEL='build Background · 2026101210';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 // ---- the Intersect: evolving tone bed, cross-reference echoes, connections strip, follow the thread
@@ -509,7 +509,7 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG};bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
-setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16:0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
+setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16:0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.01:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.05:0,T,1.5)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
 function bedSteer(orig,eng,dur,refs){bedInit();if(!bed)return;const T=ctx.currentTime;let vals=orig?orig.split(/\s+/).map(gemSum).filter(x=>x):[];
  if(!vals.length)vals=(eng.toLowerCase().match(/[a-z]+/g)||[]).filter(x=>LEX[x]).map(x=>gemSum(LEX[x]));if(!vals.length)vals=[gemSum(eng.toLowerCase())||1];
@@ -639,7 +639,7 @@ speakChunks=function(t,onDone){SS.cancel();SP={ps:sayParts(t||' '),j:0,done:onDo
 function spkNext(g){if(g!=SP.gen)return;if(SP.j>=SP.ps.length){const d=SP.done;SP.done=null;fpHl();d&&d();return}const u=new SpeechSynthesisUtterance(SP.ps[SP.j]);u.rate=vRate();const vv=voices[+voice.value];u.lang=vv?vv.lang:'en-GB';if(vv)u.voice=vv;u.pitch=+S.pitch||1;
  const nx=()=>{if(g!=SP.gen)return;SP.j++;spkNext(g)};u.onend=nx;u.onerror=e=>{if(e&&(e.error=='interrupted'||e.error=='canceled'))return;nx()};SS.speak(u);fpHl()}
 function respeak(){if(!SS||!SP.ps.length||SP.j>=SP.ps.length)return;const{ps,j,done,txt}=SP;SS.cancel();SP={ps,j,done,txt,gen:SP.gen};spkNext(SP.gen);
- if(nmA&&done){clearTimeout(nTimer);const w=ps.slice(j).join(' ').split(/\s+/).length,rt=vRate(),est=()=>{if(!document.hidden&&SS.speaking){nTimer=setTimeout(est,1000);return}done()};nTimer=setTimeout(est,(w*.45/rt+2)*1000)}}
+ if(nmA&&done){clearTimeout(nTimer);const w=ps.slice(j).join(' ').split(/\s+/).length,rt=vRate(),est=()=>{if(SS.speaking&&(!document.hidden||window.LT_NATIVE)){nTimer=setTimeout(est,1000);return}done()};nTimer=setTimeout(est,(w*.45/rt+2)*1000)}}
 // speed: takes effect at once (speech chunk restarts at the new rate, tone segment and echo timing rebuilt)
 function setSpeed(v){S.speed=spd.value=String(v);persist();
  if(nmA&&rendered){nSegs={};const b=nSeg(nIdx),s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=b;s.loop=true;s.loopStart=Math.min(b.duration*.25,1);s.loopEnd=Math.max(s.loopStart+.5,b.duration-Math.min(b.duration*.25,1));
@@ -727,10 +727,17 @@ function dialSetMax(m){if(!(m>=1))m=1;m=Math.round(m/STEP)*STEP;dMax=m;localStor
  dial.addEventListener('keydown',e=>{if(e.key=='ArrowRight'||e.key=='ArrowUp'){dialStep(1);e.preventDefault()}if(e.key=='ArrowLeft'||e.key=='ArrowDown'){dialStep(-1);e.preventDefault()}});
  dial.addEventListener('wheel',e=>{e.preventDefault();dialStep(e.deltaY<0?1:-1)},{passive:false})})();
 dialTicks();dialDraw(+S.speed||1);
-// ---- background: Night/Sleep keep only the theta layer; normal mode keeps reading (native app keeps the WebView alive via a foreground service)
-let bgQ=null;function ltBgSync(){if(bgQ&&!slpEnd&&!night&&prOn&&!prayM){prayStop();bgQ=null}const on=isOn()||prOn;if(window.LT_BG)(on?LT_BG.start({title:'Logos Theta',text:(fpRef.textContent||'Playing')}):LT_BG.stop()).catch(()=>{})}
-document.addEventListener('visibilitychange',()=>{if(document.hidden){if((night||slpEnd)&&isOn()&&!prayM){bgQ={o:pos()};try{SS&&SS.cancel()}catch(e){}if(nmA)nPause();else pause();spkStop();prayStart()}}
- else if(bgQ){const b=bgQ;bgQ=null;prayStop();if(slpEnd||night)startAt(b.o)}});
+// ---- background (build 2026101210): by default EVERYTHING keeps playing when hidden (words, tones, theta, echoes, auto-advance), all modes, no fade.
+// Optional S.bgTheta ('Theta only when I leave'): Night/Sleep drop to theta only while hidden. The sleep timer still stops everything.
+// The foreground service stays up for the whole session: it is only stopped when the app is visible and idle for 20 s, or when the sleep timer ends.
+let bgQ=null,ltIdle=0;window.ltSess=false;
+function ltBgSync(){if(bgQ&&!slpEnd&&!night&&prOn&&!prayM){prayStop();bgQ=null}const on=isOn()||prOn||!!bgQ;
+ if(on){window.ltSess=true;ltIdle=0}else if(window.ltSess&&!document.hidden){if(!ltIdle)ltIdle=Date.now();else if(Date.now()-ltIdle>20e3)window.ltSess=false}
+ if(window.LT_BG)(window.ltSess?LT_BG.start({title:'Logos Theta',text:(fpRef.textContent||'Playing')}):LT_BG.stop()).catch(()=>{})}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){ltBgSync();if(S.bgTheta&&(night||slpEnd)&&isOn()&&!prayM){bgQ={o:pos()};try{SS&&SS.cancel()}catch(e){}if(nmA)nPause();else pause();spkStop();prayStart()}else if(ctx&&ctx.state=='suspended')ctx.resume().catch(()=>{})}
+ else{if(bgQ){const b=bgQ;bgQ=null;prayStop();if(slpEnd||night)startAt(b.o)}ltBgSync()}});
+(function(){const m=$('more');if(!m)return;m.insertAdjacentHTML('beforeend','<div id="bgSet" style="margin-top:10px"><b>Background play</b><label style="display:block;margin-top:6px"><input type="checkbox" id="bgTheta"> Theta only when I leave <small class="dim">(Night/Sleep only; off = everything keeps playing: words, tones, theta, echoes, auto-advance)</small></label><div class="dim" style="font-size:12px;margin-top:4px">Samsung: Settings → Apps → Logos Theta → Battery → <b>Unrestricted</b>; Battery → Background usage limits → add it to <b>Never sleeping apps</b>; keep its <b>notifications on</b> (the playback notification keeps it running). The sleep timer still stops everything.</div></div>');
+ const c=$('bgTheta');c.checked=!!S.bgTheta;c.onchange=()=>{S.bgTheta=c.checked;persist()}})();
 if(window.LT_BG)LT_BG.addListener('action',e=>{const a=e&&e.action;if(a=='toggle')toggle();else if(a=='next')stepVerse(1);else if(a=='prev')stepVerse(-1);setTimeout(ltBgSync,300)});
 setInterval(ltBgSync,3000);
 </script>
