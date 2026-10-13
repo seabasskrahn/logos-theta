@@ -520,7 +520,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101220',BUILD_LABEL='build Live · 2026101220';
+const BUILD='2026101221',BUILD_LABEL='build Live · 2026101221';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -556,7 +556,7 @@ function bedInit(){if(bed||!ctx)return;const lp=ctx.createBiquadFilter();lp.type
  bed={o,g,out,lp,lfo,lfoG,g7,thL,thR,thG,dv,pad,padG};mixInit();bedTune()}
 function bedTune(){if(!bed)return;const TU=TUNE(),B=thetaBeats(S.band),T=ctx.currentTime;[150,200,250,300].forEach((f,q)=>{bed.thL[q].frequency.setTargetAtTime(f*TU,T,.5);bed.thR[q].frequency.setTargetAtTime(f*TU+B[q],T,.5)})}
 let lastLive=0;
-setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16*(window.ROOM&&ROOM.on&&isLive()?ROOM.g:1):0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.004:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.028:0,T,1.5);if(bed.padG)bed.padG.gain.setTargetAtTime(S.tex=='pure'||(S.style||'score')!='pure'?0:1,T,1)},500);
+setInterval(()=>{if(playing||nmA)lastLive=Date.now();if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing||nmA?'playing':'paused';if(!bed)return;const T=ctx.currentTime,on=playing||nmA||Date.now()-lastLive<2500;bed.out.gain.setTargetAtTime(on?(+S.tone)*.16*(window.ROOM&&ROOM.on&&isLive()?ROOM.g:1)*(window.LT_LOUD||1):0,T,1.5);bed.g7.gain.setTargetAtTime(on&&S.s777!==false?.004:0,T,2);bed.thG.gain.setTargetAtTime(on&&S.theta?.028:0,T,1.5);if(bed.padG)bed.padG.gain.setTargetAtTime(S.tex=='pure'||(S.style||'score')!='pure'?0:1,T,1)},500);
 function themeW(eng,refs){const w=THEMES.map(([,r])=>r.test(eng)?1:0);(refs||[]).forEach(r=>THEMES.forEach((_,i)=>{if(r[5]&(1<<i))w[i]+=.5/refs.length*2}));return w}
 // ---- ensemble (build 2026101219): bass = chord root, tenor = pad chord (I/IV/V/vi picked from the verse's rare-word tones),
 // alto = slow counter-melody through the 3 rare-word tones, soprano = word melody (cbTone). Each on its own bus (mixInit).
@@ -587,22 +587,22 @@ function cbWordsPlay(ws,dur,audio){window.cbPrev=0;const tok=++cbTok,n=Math.min(
   if(!audio||!x.key)continue;cbTone(x,t,Math.min(step*.9,1.2))}}
 function cbShow(x){const e=$('fpDec');if(!e)return;e.style.display=S.decode===false?'none':'';if(!x){e.textContent='';return}
  const pl=x.place?` · 📍 ${x.place.name.replace(/ \d+$/,"")}${x.place.modern&&x.place.modern!=x.place.name?' ('+x.place.modern+')':''}`:'';
- e.textContent=(x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.ratio}${x.oct?' ×'+(1<<x.oct):''} · ${Math.round(x.hz[0]*TUNE())} Hz${isLive()?' (live '+Math.round(x.hz[0]*TUNE()*Math.pow(2,((window.ROOM&&ROOM.on?ROOM.c:0)+(window.LT_BEND&&LT_BEND.on?LT_BEND.x*40:0))/1200))+' Hz)':''} ${solfOn()?' · solfeggio '+Math.round(solfF(x.hz[0]*TUNE()))+' Hz':''} · base ${Math.round(BASEF()*TUNE())} Hz · ${x.n}× · first ${gRef(x.first)} · ${GENRES[genreOf(curBook())][0]}`:`Now decoding: ${x.w} · (not in codebook, rest)`)+pl}
+ e.textContent=(x.key?`Now decoding: ${x.w} · ${x.lemma} · ${x.ratio}${x.oct?' ×'+(1<<x.oct):''} · ${Math.round(x.hz[0]*TUNE())} Hz${isLive()?' (live '+Math.round(x.hz[0]*TUNE()*Math.pow(2,((window.ROOM&&ROOM.on?ROOM.c:0)+(window.LT_BEND&&LT_BEND.on?LT_BEND.x*40:0))/1200))+' Hz)':''} ${window.LT_E?' · '+emoLabel(LT_E)+' · '+LT_E.mode:''}${solfOn()?' · solfeggio '+Math.round(solfF(x.hz[0]*TUNE()))+' Hz':''} · base ${Math.round(BASEF()*TUNE())} Hz · ${x.n}× · first ${gRef(x.first)} · ${GENRES[genreOf(curBook())][0]}`:`Now decoding: ${x.w} · (not in codebook, rest)`)+pl}
 // cross-reference meeting (The Eye): both verses' tones share the F0 pupil. The current verse's key tones leave from one side
 // while the cross reference's key tones swell in from the opposite side (left = earlier in the Bible, right = later), mirrored
 // envelopes crossing at the centre. Bidirectional: the same pair heard from the other verse mirrors the sides.
 async function refTones(r){try{const b=META[r[0]][0],bk=await getBook(b),t=bk.c[r[1]-1][r[2]-1]||'';return verseSig(t,gIdxG(b,r[1],r[2])).hz.slice(1)}catch(e){return[]}}
-function meet(mine,theirs,dir,len){window.LT_MEET={dir,t:performance.now(),len,hz:theirs[0]||F0};if(!bed||!ctx.createStereoPanner)return;const t=ctx.currentTime+.05,TU=TUNE(),ev=(S.echoVol!=null?+S.echoVol:1)*.1;
+function meet(mine,theirs,dir,len,alpha){alpha=alpha==null?1:alpha;window.LT_MEET={dir,t:performance.now(),len,hz:theirs[0]||F0,a:alpha};if(!bed||!ctx.createStereoPanner)return;const t=ctx.currentTime+.05,TU=TUNE(),ev=(S.echoVol!=null?+S.echoVol:1)*.1*(.4+.6*alpha);
  const voice=(f,from,to,up)=>{const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createStereoPanner();o.frequency.value=f*2*TU;if((S.style||'score')!='pure'){o.type='sawtooth';const lf=ctx.createBiquadFilter();lf.type='lowpass';lf.frequency.value=900;o.connect(lf);o._out=lf}p.pan.setValueAtTime(from,t);p.pan.linearRampToValueAtTime(to,t+len);
   g.gain.setValueAtTime(up?0:ev,t);g.gain.linearRampToValueAtTime(up?ev:0,t+len);g.gain.linearRampToValueAtTime(0,t+len+.4);(o._out||o).connect(g).connect(p).connect(bed.bus?bed.bus.xref.in:bed.lp);o.start(t);o.stop(t+len+.5);o.onended=()=>{o.disconnect();g.disconnect();p.disconnect()}};
  voice(F0,0,0,true);mine.forEach(f=>voice(f,-dir,dir*.0,false));theirs.forEach(f=>voice(f,dir,0,true))}
 function echoes(b,c,v,dur,refs){if(S.echo===false)return;const tok=++echoTok,me=gIdx(META.findIndex(m=>m[0]==b),c,v),top=refs.slice(0,3);
  top.forEach((r,j)=>setTimeout(async()=>{if(tok!=echoTok||!(playing||nmA))return;const th=await refTones(r);if(tok!=echoTok)return;const mine=(bed&&bed.lastVs?bed.lastVs.hz.slice(1):[]);
-  meet(mine,th,gIdx(r[0],r[1],r[2])<me?-.7:.7,j?1.2:2);const el=document.querySelectorAll('.conn .xc[data-j="'+j+'"]');el.forEach(e=>{e.classList.add('lit');setTimeout(()=>e.classList.remove('lit'),1300)})},(j+1)*dur/(top.length+1)*1000))}
+  meet(mine,th,gIdx(r[0],r[1],r[2])<me?-.7:.7,j?1.2:2,(r[3]||1)/Math.max(1,...top.map(x=>x[3]||1)));const el=document.querySelectorAll('.conn .xc[data-j="'+j+'"]');el.forEach(e=>{e.classList.add('lit');setTimeout(()=>e.classList.remove('lit'),1300)})},(j+1)*dur/(top.length+1)*1000))}
 function gIdxG(b,c,v){let g=0;for(const[n,,cs]of META){if(n==b){for(let i=0;i<c-1;i++)g+=cs[i];return g+v-1}g+=cs.reduce((a,x)=>a+x,0)}return null}
 function onVerse(b,c,v,d,tok){const k=b+'.'+c+'.'+v;S.visited[k]=1;if(Object.keys(S.visited).length>20000)S.visited={[k]:1};
  const dur=narrOn()?((d[1]||'').split(/\s+/).length*.42/vRate()+1):(rendered?rendered.buf.duration:6);
- getX(b).catch(()=>({})).then(X=>{if(tok!=streamTok)return;const refs=(X||{})[c+'.'+v]||[];bedSteer(d[0],d[1]||'',dur,refs,gIdxG(b,c,v));drawConn();if(refs.length)echoes(b,c,v,dur,refs)})}
+ Promise.all([getX(b).catch(()=>({})),vadLoad(b)]).then(([X])=>{if(tok!=streamTok)return;const refs=(X||{})[c+'.'+v]||[];bedSteer(d[0],d[1]||'',dur,refs,gIdxG(b,c,v));drawConn();if(refs.length)echoes(b,c,v,dur,refs)})}
 function drawConn(){document.querySelectorAll('.conn,.xcr').forEach(e=>e.remove());const p=S.pos;if(!cur||!cur.rb)return;if(S.xrefTabs===false)return;const refs=((XC[p.b]||{})[p.c+'.'+p.v]||[]).slice(0,+S.xrefN||5);if(!refs.length)return;
  const h=`<div class="conn" onclick="event.stopPropagation()"><span class="dim" style="align-self:center">Cross references</span>${refs.map((r,j)=>`<button class="xc" data-j="${j}" onclick="event.stopPropagation();playAt('${META[r[0]][0]}',${r[1]},${r[2]})">${META[r[0]][0]} ${r[1]}:${r[2]}</button>`).join('')}</div><div class="dim xcr" style="font-size:11px;padding:0 6px 6px">Cross references: <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY · tap a tab to play it</div>`;
  const a=$('r'+posKey(p));a&&a.insertAdjacentHTML('afterend',h);if(S.view.b==p.b&&S.view.c==String(p.c)){const e=$('v'+p.v);e&&e.insertAdjacentHTML('afterend',h)}}
@@ -870,6 +870,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'mix_theta',l:'Theta',t:'range',min:0,max:2,step:.05,g:()=>S.mix.theta==null?1:+S.mix.theta,s:v=>{S.mix.theta=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
   {k:'mix_xref',l:'Cross-refs',t:'range',min:0,max:2,step:.05,g:()=>S.mix.xref==null?1:+S.mix.xref,s:v=>{S.mix.xref=+v;persist();mixApply()},f:x=>Math.round(x*100)+'%'},
   {k:'mixb',l:'Balanced',d:'Reset all mixer levels to the balanced mix.',t:'btn',b:'Reset',s:()=>{S.mix={};persist();mixApply();setDraw()}},
+  {k:'emo',l:'Emotion data',t:'note',h:'Verse emotion (valence, arousal, dominance) comes from the NRC Valence, Arousal, and Dominance Lexicon by Saif M. Mohammad, National Research Council Canada (2018), used for non-commercial purposes with credit. Only per-verse averages are shipped, not the lexicon. Valence picks the mode (joy: major/Lydian, peace: Mixolydian, longing: Dorian, sorrow: Aeolian), arousal the tempo (54-84 BPM), density and loudness, dominance the register and brightness.'},
   {k:'style',l:'Music style',d:'Score: underscore with piano arpeggios, strings, cello and a celesta melody on the key words, in the key of the centre, ducking under the voice. Ambient: strings, cello and a sparse melody. Pure tones: the original sine tones for every word.',t:'sel',o:()=>[['score','Score (default)'],['ambient','Ambient'],['pure','Pure tones']],g:()=>S.style||'score',s:v=>{S.style=v;persist();if(v=='pure'&&window.duckTo)duckTo(1);mixApply()}},
   {k:'tex',l:'Texture',d:'Pad: a warm, slow, detuned pad on the centre, fifth and octave under the words. Pure tones: only the word tones and drone.',t:'sel',o:()=>[['pad','Pad (default)'],['pure','Pure tones']],g:()=>S.tex||'pad',s:v=>{S.tex=v;persist();nSegs={};rerender()}},
   {k:'noise',l:'Add noise',d:'Off by default. Adds a soft brown-noise bed to the background carrier.',t:'chk',g:()=>!!S.noise,s:v=>{S.noise=v;persist();nSegs={};rerender()}},
@@ -989,9 +990,9 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  // ---- visualizer: AnalyserNode on the master mix
  let an=null,fd=null,td=null,stars=null,lastF=0;const mob=/Android|iPhone|iPad|Mobi/i.test(navigator.userAgent),c2=cv.getContext('2d');
  function size(){const d=Math.min(devicePixelRatio||1,mob?1:1.5);cv.width=innerWidth*d;cv.height=innerHeight*d}addEventListener('resize',size);size();
- function draw(now){const W=cv.width,H=cv.height,st=document.body.classList.contains('vis')?(S.visStyle||'cym'):(S.viz||'eye');c2.clearRect(0,0,W,H);if(st=='off'||!document.body.classList.contains('fpo')){scr.style.display='none';return}scr.style.display='';
+ function draw(now){const EE=window.LT_E||{v:.5,a:.5,d:.5},HUE1=210-170*EE.v,HUE2=HUE1+150,C1=`hsl(${HUE1},${45+30*EE.v}%,${45+15*EE.v}%)`,C2=`hsl(${HUE2},55%,${40+15*EE.d}%)`,W=cv.width,H=cv.height,st=document.body.classList.contains('vis')?(S.visStyle||'cym'):(S.viz||'eye');c2.clearRect(0,0,W,H);if(st=='off'||!document.body.classList.contains('fpo')){scr.style.display='none';return}scr.style.display='';
   if(!an&&ctx&&gain){an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=.8;gain.connect(an);fd=new Uint8Array(an.frequencyBinCount);td=new Uint8Array(an.fftSize)}
-  if(an){an.getByteFrequencyData(fd);an.getByteTimeDomainData(td)}const lvl=fd?fd.slice(0,64).reduce((a,x)=>a+x,0)/64/255:0,T=now/1000;c2.globalAlpha=.55;
+  if(an){an.getByteFrequencyData(fd);an.getByteTimeDomainData(td)}const lvl=fd?fd.slice(0,64).reduce((a,x)=>a+x,0)/64/255:0,T=now/1000*(.5+EE.a);c2.globalAlpha=.55;
   if(st=='cym'&&window.drawCym){c2.globalAlpha=1;drawCym(c2,W,H,now,fd,lvl,mob,BEND)}else if(st=='spec'){const n=48;for(let i=0;i<n;i++){const v=fd?fd[Math.floor(Math.pow(i/n,1.6)*fd.length*.5)]/255:.05,h=v*H*.6,x=i*W/n;c2.fillStyle=`hsl(${40+i*4},70%,${35+v*30}%)`;c2.fillRect(x+1,H-h,W/n-2,h);c2.fillRect(x+1,0,W/n-2,h*.3)}}
   else if(st=='stars'){if(!stars)stars=[...Array(mob?90:180)].map(()=>[Math.random()*2-1,Math.random()*2-1,Math.random()]);c2.fillStyle='#e8e0ff';stars.forEach(s=>{s[2]-=.004+lvl*.03;if(s[2]<=.02){s[0]=Math.random()*2-1;s[1]=Math.random()*2-1;s[2]=1}const x=W/2+s[0]/s[2]*W*.3,y=H/2+s[1]/s[2]*H*.3,r=(1-s[2])*3;c2.fillRect(x,y,r,r)})}
   else{if(window.ROOM&&ROOM.on&&ROOM.fd){const R0=Math.min(W,H)*.34,n=96;c2.strokeStyle='rgba(160,200,180,.22)';c2.lineWidth=1.5;c2.beginPath();for(let i=0;i<=n;i++){const v=ROOM.fd[Math.floor(Math.pow((i%n)/n,1.5)*ROOM.fd.length*.4)]/255,a=i/n*Math.PI*2,r=R0*(1+v*.35);const x=W/2+r*Math.cos(a),y=H/2+r*Math.sin(a);i?c2.lineTo(x,y):c2.moveTo(x,y)}c2.stroke()}
@@ -1000,7 +1001,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
    const wave=(col,sg,u0,u1,a2,ph)=>{c2.strokeStyle=col;c2.lineWidth=2;c2.beginPath();let first=1;for(let x=u0*W;x<=u1*W;x+=6){const u=x/W,env=Math.sin(Math.PI*u),k=td?(td[Math.floor(u*(td.length-1))]-128)/128:0;
      let y=Math.sin(u*Math.PI*kf+sg*T*1.3+ph+bx*3*(u-.5))*Math.cos(T*.7);parts.forEach((r,j)=>y+=.25*pulse*Math.sin(u*Math.PI*kf*r*2+T*(2+j)));
      y=cy+sg*env*(a2*y+k*H*.08)+BEND.y*H*.1*Math.exp(-Math.pow((u-BEND.u)*4,2));first?c2.moveTo(x,y):c2.lineTo(x,y);first=0}c2.stroke()};
-   wave('#d9b65a',1,0,1,amp,0);wave('#5a8fe0',-1,0,1,amp,0);
+   wave(C1,1,0,1,amp,0);wave(C2,-1,0,1,amp,0);
    const m=window.LT_MEET;if(m){const e=(now-m.t)/1000/m.len;if(e<1.3){const f=Math.min(1,e),from=m.dir<0?0:1,u0=m.dir<0?0:1-f*.5,u1=m.dir<0?f*.5:1;c2.globalAlpha=.55*Math.min(1,(1.3-e)*3);wave('#e8e0ff',m.dir<0?1:-1,Math.min(u0,u1),Math.max(u0,u1),amp*.8,Math.PI/2);c2.globalAlpha=.55}}
    const hue=tn?40+Math.log2(tn.hz/110)*90:40;c2.strokeStyle=`hsla(${hue},70%,60%,${.3+.5*pulse})`;c2.lineWidth=3+6*pulse;c2.beginPath();c2.arc(W/2,cy,Math.min(W,H)*(.12+.04*pulse+.05*lvl),0,7);c2.stroke();
    parts.forEach((r,j)=>{c2.strokeStyle=`hsla(${hue+30*(j+1)},60%,60%,${.2*pulse})`;c2.lineWidth=1.5;c2.beginPath();c2.arc(W/2,cy,Math.min(W,H)*(.12*r+.02*pulse),0,7);c2.stroke()});
@@ -1065,17 +1066,17 @@ document.querySelector('.rsb').insertAdjacentHTML('beforeend','<button id="modeB
   const y=3/x,f=.79788456+y*(-.00000077+y*(-.0055274+y*(-.00009512+y*(.00137237+y*(-.00072805+y*.00014476))))),t=x-.78539816+y*(-.04166397+y*(-.00003954+y*(.00262573+y*(-.00054125+y*(-.00029333+y*.00013558)))));return f*Math.cos(t)/Math.sqrt(x)}
  let N=0,px=null,py=null,cur=[1,2,5],cur2=null,w2=0,lastHz=0;window.CYM={get mode(){return cur},get mode2(){return cur2}};
  function init(mob){N=mob?1800:4500;px=new Float32Array(N);py=new Float32Array(N);for(let i=0;i<N;i++){px[i]=Math.random();py[i]=Math.random()}}
- window.drawCym=function(c,W,H,now,fd,lvl,mob,B){if(!px)init(mob);const T=now/1000,tn=window.LT_TONE,cf=(typeof BASEF=='function'?BASEF():110)*TUNE();
+ window.drawCym=function(c,W,H,now,fd,lvl,mob,B){if(!px)init(mob);const EE=window.LT_E||{v:.5,a:.5,d:.5},T=now/1000*(.5+EE.a),tn=window.LT_TONE,cf=(typeof BASEF=='function'?BASEF():110)*TUNE();
   const bend=B?Math.pow(2,B.x*.8):1;  // touch-drag shifts the plate mode (exaggerated vs the ±40 cent audio detune so it is visible)
   if(tn&&(tn.hz!=lastHz||B&&B.on)){lastHz=tn.hz;cur=mode(tn.hz/cf*bend);const p2=tn.p&&tn.p[1]&&tn.p[1]!=tn.hz?mode(tn.p[1]/cf*bend):null;cur2=p2&&p2[2]!=cur[2]?p2:null}
-  const age=tn?(now-tn.t)/1000:9;w2=cur2?.35*Math.max(0,1-age/1.5):0;const drive=.006+.02*Math.max(0,1-age/1.2)+.01*lvl,[n,m]=cur;
+  const age=tn?(now-tn.t)/1000:9;w2=cur2?.35*Math.max(0,1-age/1.5):0;const drive=(.006+.02*Math.max(0,1-age/1.2)+.01*lvl)*(.5+EE.a),[n,m]=cur;
   const S0=Math.min(W,H)*.62,ox=(W-S0)/2,oy=(H-S0)/2-H*.04;
   // ripple dish behind the plate: circular membrane J0(k r) cos(ωt), pulsing with the drone level and the theta beat
   const R0=S0*.78,th=+S.band||6,pul=.5+.5*Math.cos(2*PI*th*T*.25),k0=2.405*(3+Math.round(cf/110));c.lineWidth=2;
   for(let i=1;i<=22;i++){const r=i/22,v=J0(k0*r)*Math.cos(T*2)*pul;c.strokeStyle=v>0?`rgba(90,143,224,${.06+.25*v*(.4+lvl)})`:`rgba(217,182,90,${.06-.2*v*(.4+lvl)})`;c.beginPath();c.arc(W/2,oy+S0/2,R0*r,0,7);c.stroke()}
   c.strokeStyle='rgba(200,190,230,.18)';c.strokeRect(ox,oy,S0,S0);
   // sand: jitter proportional to local amplitude, so grains leave antinodes and collect on the nodal lines
-  c.fillStyle='rgba(236,220,170,.55)';const sz=mob?1.6:1.3;
+  c.fillStyle=`hsla(${210-170*EE.v},${40+40*EE.v}%,${60+15*EE.v}%,.55)`;const sz=mob?1.6:1.3;
   for(let i=0;i<N;i++){let x=px[i],y=py[i];const a=Math.abs((1-w2)*chl(n,m,x,y)+(cur2?w2*chl(cur2[0],cur2[1],x,y):0));
    const j=drive*a*2;x+=(Math.random()-.5)*j;y+=(Math.random()-.5)*j;if(x<0)x=-x;if(x>1)x=2-x;if(y<0)y=-y;if(y>1)y=2-y;px[i]=x;py[i]=y;c.fillRect(ox+x*S0,oy+y*S0,sz,sz)}
   // Rubens' tube along the bottom: flame height ∝ |standing wave| at the drone frequency, a few half-waves per 55 Hz
@@ -1131,9 +1132,25 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
 // cello root (filtered saw), celesta melody on key words only (rare/content words), rests at punctuation, cadence at verse end.
 // Music ducks about 8 dB while the narrator speaks and swells in the gaps.
 (function(){
- const SC=[1,9/8,5/4,4/3,3/2,5/3,15/8],CH={I:[1,5/4,3/2],vi:[5/3,2,5/2],IV:[4/3,5/3,2],V:[3/2,15/8,9/4]},RING=['I','vi','IV','V'];
+ // ===== The unified equation (build 2026101221) =====
+ //   Sound(w,t) = F0 · R(w) · K(E(v,t)) · [ Σ_{u∈N(w)} α_u · Sound(u,t) ],  resolved home (Res)
+ // F0: home note (110 Hz, ×432/440, or the Live baseline; Room/Solfeggio as Live modifiers)   R: Eye codebook ratio (cbLook)
+ // E: verse emotion (NRC VAD, smoothed arcs + book drift, vad/*.json)   K: emotion -> mode, tempo, density, loudness, register
+ // N: companions (codebook partials) + OpenBible cross-refs, α = normalised strength    Res: the Resolution rule
+ const MODES={Lydian:[1,9/8,5/4,45/32,3/2,5/3,15/8],Ionian:[1,9/8,5/4,4/3,3/2,5/3,15/8],Mixolydian:[1,9/8,5/4,4/3,3/2,5/3,16/9],Dorian:[1,9/8,6/5,4/3,3/2,5/3,16/9],Aeolian:[1,9/8,6/5,4/3,3/2,8/5,9/5]};
+ const DEG={I:[0,2,4],vi:[5,7,9],IV:[3,5,7],V:[4,6,8]},RING=['I','vi','IV','V'];
  const sty=()=>S.style||'score';window.musicStyle=sty;
- const snap=(f,base)=>{let r=f/base,o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let b=SC[0];SC.concat([2]).forEach(c=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/b)))b=c});return base*b*o};
+ const deg=(sc,d)=>sc[d%7]*Math.pow(2,Math.floor(d/7));
+ // chord tones of a degree-chord in a mode; the cadential V always takes the leading tone (15/8) so V-I resolves home
+ const chordR=(mode,c,cad)=>DEG[c].map(d=>{const sc=MODES[mode];return(cad&&c=='V'&&d%7==6)?15/8*Math.pow(2,Math.floor(d/7)):deg(sc,d)});
+ // K(E): emotion -> music (v,a,d in 0..1)
+ const Kmap=E=>{const v=E.v,a=E.a,d=E.d,mode=v>.7?(d>.6?'Lydian':'Ionian'):v>.5?'Mixolydian':v>.32?'Dorian':'Aeolian';
+  return{mode,bpm:54+30*a,dens:a>.55?8:a>.3?6:4,loud:.75+.5*a,reg:Math.pow(2,(d-.5)*.6),bright:700+900*d,celV:.12+.08*d,strV:.04+.03*(1-a)+.02*d}};
+ window.LT_K=Kmap;
+ const snapK=(f,base,mode)=>{const SC=MODES[mode];let r=f/base,o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let b=SC[0];SC.concat([2]).forEach(c=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/b)))b=c});return base*b*o};
+ // Sound(w,t): one word's sounding frequency and its network partials (companions, α = 2/3, 1/3)
+ window.Sound=function(x,E){const k=Kmap(E||{v:.5,a:.5,d:.5}),home=F0*TUNE(),f=solfF(snapK(x.hz[0]*TUNE(),home,k.mode));
+  return{f,mode:k.mode,parts:[[x.hz[1],2/3],[x.hz[2],1/3]].filter(p=>p[0]&&p[0]!=x.hz[0]).map(([h,al])=>({f:solfF(snapK(f*h/x.hz[0],home,k.mode)),a:al}))}};
  const reg=(f,lo)=>{while(f<lo)f*=2;while(f>=lo*2)f/=2;return f};
  let duck=null;function duckInit(){if(duck||!bed)return;duck=ctx.createGain();duck.gain.value=1;try{bed.out.disconnect()}catch(e){}bed.out.connect(duck).connect(gain)}
  window.duckTo=function(v,t,tau){if(!duck)return;const T=t||ctx.currentTime;duck.gain.cancelScheduledValues(T);duck.gain.setTargetAtTime(v,T,tau||(v<1?.12:.6))};
@@ -1152,40 +1169,43 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
   a.gain.setValueAtTime(0,t);a.gain.linearRampToValueAtTime(v,t+.14);a.gain.setValueAtTime(v,t+d);a.gain.linearRampToValueAtTime(0,t+d+.6);o.connect(lp).connect(a).connect(dst);o.start(t);o.stop(t+d+.7);o.onended=()=>{[o,lp,a].forEach(n=>n.disconnect())}}
  function celesta(dst,f,t,v){const os=[[1,1,1.8],[4,.22,.35],[2,.12,.8]].map(([r,l,dc])=>{const o=ctx.createOscillator(),a=ctx.createGain();o.frequency.value=f*r;a.gain.setValueAtTime(0,t);a.gain.linearRampToValueAtTime(v*l,t+.004);a.gain.exponentialRampToValueAtTime(.0001,t+dc);o.connect(a).connect(dst);o.start(t);o.stop(t+dc+.05);o.onended=()=>{o.disconnect();a.disconnect()};return o});window.LT_TONE={hz:f,p:[f],t:performance.now()+(t-ctx.currentTime)*1000}}
  // per-verse score -------------------------------------------------------------------------------
- let melPrevS=0,lastChord='I';
- window.scoreVerse=function(vs,dur,eng){if(sty()=='pure'||!bed||!bed.bus)return;duckInit();const T0=ctx.currentTime+.06,TU=TUNE(),B=bed.bus,K=F0*TU;
-  // silence the old sustained sine layers (Pure style uses them)
+ let melPrevS=0;
+ let lastMode='Ionian';
+ window.scoreVerse=function(vs,dur,eng){if(sty()=='pure'||!bed||!bed.bus)return;duckInit();const T0=ctx.currentTime+.06,TU=TUNE(),B=bed.bus,H=F0*TU;
   [bed.g[0],bed.g[2],bed.g[3]].concat(bed.dv.map(d=>d.y)).forEach(g=>g.gain.setTargetAtTime(0,T0,.3));
-  const sp=Math.min(2,Math.max(.75,+S.speed||1)),beat0=60/(66*sp),nb=Math.max(2,Math.round(dur/(4*beat0))),bar=dur/nb,beat=bar/4;
-  const rel=vs.hz.slice(1).map(h=>h/F0);let c0='I',bs=1e9;RING.forEach(c=>{let sc=0;rel.forEach(r=>{sc+=Math.min(...CH[c].map(t=>Math.abs(Math.log2(reg(r,1)/reg(t,1)))))});if(sc<bs-1e-9){bs=sc;c0=c}});
-  // Resolution rule: every verse closes with a cadence, V-I (authentic) normally, IV-I (plagal, 'Amen') at a chapter end
+  const E=window.verseE?verseE(S.pos):{v:.5,a:.5,d:.5},k=Kmap(E),mode=k.mode;window.LT_E=Object.assign({},E,{mode});
+  const sp=Math.min(2,Math.max(.75,+S.speed||1)),beat0=60/(k.bpm*sp),nb=Math.max(2,Math.round(dur/(4*beat0))),bar=dur/nb,beat=bar/4;
+  // loudness and brightness follow arousal and dominance (smoothly, at the verse boundary)
+  window.LT_LOUD=k.loud;bed.lp.frequency.setTargetAtTime(Math.min(2400,1100+k.bright*.6),T0,1.5);
+  const rel=vs.hz.slice(1).map(h=>h/F0);let c0='I',bs=1e9;RING.forEach(c=>{let sc=0;rel.forEach(r=>{sc+=Math.min(...chordR(mode,c).map(t=>Math.abs(Math.log2(reg(r,1)/reg(t,1)))))});if(sc<bs-1e-9){bs=sc;c0=c}});
+  // Res: V-I (authentic) normally, IV-I (plagal 'Amen') at a chapter end
   let chEndV=false;try{const p=S.pos;chEndV=!!(p&&MB[p.b]&&p.v>=MB[p.b][2][p.c-1])}catch(e){}
   const i0=RING.indexOf(c0),prog=[...Array(nb)].map((_,b)=>RING[(i0+b)%4]);prog[nb-1]='I';prog[nb-2]=chEndV?'IV':'V';if(nb>2&&prog[nb-3]==prog[nb-2])prog[nb-3]=chEndV?'vi':'IV';
-  const S_=x=>solfF(x);
-  prog.forEach((c,b)=>{const t=T0+b*bar,ct=CH[c].map(r=>K*r);
+  // modulation at the verse boundary through a pivot chord: the first bar uses a chord whose tones exist in both modes
+  let pivot=null;if(mode!=lastMode){const same=c=>{const a=chordR(lastMode,c),b=chordR(mode,c);return a.every((x,i)=>Math.abs(x-b[i])<1e-9)};pivot=['IV','V','vi','I'].find(same)||null;if(pivot&&nb>2)prog[0]=pivot}
+  lastMode=mode;const cad=(b)=>b==nb-2;const S_=x=>solfF(x);
+  prog.forEach((c,b)=>{const t=T0+b*bar,ct=chordR(mode,c,cad(b)).map(r=>H*r);
    cello(B.bass.in,S_(reg(ct[0],65)),t,bar*.96,.22);
-   strings(B.pad.in,ct.map(f=>S_(reg(f,196))),t,bar,.05);
-   if(sty()=='score'){const arp=[0,1,2,1,0,2,1,2],sub=bar>=2.4?8:4;for(let k=0;k<sub;k++){const f=reg(ct[arp[k]],220)*(k==3||k==6?2:1);epiano(B.counter.in,S_(f),t+k*bar/sub,bar/sub,.09+(k==0?.03:0))}}});
-  bed.chord=prog[0];lastChord=prog[nb-1];
-  // melody on key words: content/rare lemmas (fewer than 200 occurrences), quantized to eighths, one per beat, rests after punctuation
+   strings(B.pad.in,ct.map(f=>S_(reg(f,196))),t,bar,k.strV);
+   if(sty()=='score'){const arp=[0,1,2,1,0,2,1,2],sub=bar>=2.4?k.dens:Math.min(4,k.dens);for(let q=0;q<sub;q++){const f=reg(ct[arp[q%8]],220)*(q==3||q==6?2:1);epiano(B.counter.in,S_(f),t+q*bar/sub,bar/sub,(.07+.03*E.a)+(q==0?.03:0))}}});
+  bed.chord=prog[0];
+  // melody (Sound per key word), quantized; density from arousal; register from dominance; rests after punctuation
   const ew=String(eng).split(/\s+/).filter(Boolean),ws=vs.ws,n=ws.length||1,used=new Set(),rest=[];ew.forEach((w,i)=>{if(/[,;:.!?]$/.test(w))rest.push((i+1)/ew.length*dur)});
-  const LO=523,HI=1568;let notes=[];
-  ws.forEach((x,k)=>{if(!x.key||x.n>=200)return;let t=k/n*dur;const q=Math.round(t/(beat/2))*(beat/2);const slot=Math.round(q/beat);if(used.has(slot))return;if(rest.some(r=>q>r-.05&&q<r+beat*.9))return;if(q>dur-beat*.5)return;used.add(slot);
-   let f=snap(x.hz[0]*TU,K),ref=melPrevS||LO*1.3;while(f<ref/1.4142)f*=2;while(f>ref*1.4142)f/=2;while(f<LO)f*=2;while(f>HI)f/=2;melPrevS=f;notes.push([q,f,Math.min(1,.6+40/(x.n+40))])});
+  const LO=523*k.reg,HI=1568*k.reg,per=k.dens>=8?1:k.dens>=6?1.5:2;let notes=[];
+  ws.forEach((x,i)=>{if(!x.key||x.n>=200)return;const q=Math.round(i/n*dur/(beat/2))*(beat/2),slot=Math.round(q/(beat*per));if(used.has(slot))return;if(rest.some(r=>q>r-.05&&q<r+beat*.9))return;if(q>dur-beat*.5)return;used.add(slot);
+   const s0=Sound(x,E);let f=s0.f,ref=melPrevS||LO*1.3;while(f<ref/1.4142)f*=2;while(f>ref*1.4142)f/=2;while(f<LO)f*=2;while(f>HI)f/=2;melPrevS=f;notes.push([q,f,Math.min(1,.6+40/(x.n+40)),s0.parts.map(p=>({f:f*p.f/s0.f,a:p.a}))])});
   if(sty()=='ambient')notes=notes.filter((_,i)=>i%2==0);
-  // Resolution rule: notes ending a phrase (just before punctuation) pull to the nearest chord tone; any other non-chord tone
-  // is followed within half a beat by a stepwise resolution to the nearest chord tone
-  const chordAt=q=>CH[prog[Math.min(nb-1,Math.floor(q/bar))]].map(r=>K*r),pc=f=>{let r=f/K;while(r>=2)r/=2;while(r<1)r*=2;return r};
+  // Res: phrase ends -> chord tones; non-chord tones resolve by step within half a beat
+  const chordAt=q=>{const b=Math.min(nb-1,Math.floor(q/bar));return chordR(mode,prog[b],cad(b)).map(r=>H*r)},pc=f=>{let r=f/H;while(r>=2)r/=2;while(r<1)r*=2;return r};
   const nearCT=(f,q)=>{let best=f,bd=1e9;chordAt(q).forEach(c=>{for(let o=-3;o<=3;o++){const g=c*Math.pow(2,o),d=Math.abs(Math.log2(g/f));if(d<bd){bd=d;best=g}}});return best};
   const isCT=(f,q)=>chordAt(q).some(c=>Math.abs(Math.log2(pc(f)/pc(c)))<.01||Math.abs(Math.abs(Math.log2(pc(f)/pc(c)))-1)<.01);
   notes.sort((a,b)=>a[0]-b[0]);const add=[];
   notes.forEach((nt,i)=>{const [q,f]=nt,phraseEnd=rest.some(r=>r>=q&&r-q<beat*1.1);if(phraseEnd){nt[1]=nearCT(f,q);return}
-   if(!isCT(f,q)){const nx=notes[i+1],rq=q+beat/2;if(nx&&nx[0]-q<=beat&&isCT(nx[1],nx[0])&&Math.abs(Math.log2(nx[1]/f))<.25)return;if(rq<dur-beat*.6&&!(nx&&nx[0]<=rq+.01))add.push([rq,nearCT(f,rq),nt[2]*.8]);else nt[1]=nearCT(f,q)}});
+   if(!isCT(f,q)){const nx=notes[i+1],rq=q+beat/2;if(nx&&nx[0]-q<=beat&&isCT(nx[1],nx[0])&&Math.abs(Math.log2(nx[1]/f))<.25)return;if(rq<dur-beat*.6&&!(nx&&nx[0]<=rq+.01))add.push([rq,nearCT(f,rq),nt[2]*.8,[]]);else nt[1]=nearCT(f,q)}});
   notes=notes.concat(add).sort((a,b)=>a[0]-b[0]);
-  // cadence: end on the final chord's root
-  if(nb>=1){let f=reg(CH[prog[nb-1]][0]*K,LO),ref=melPrevS||f;while(f<ref/1.4142&&f*2<=HI)f*=2;while(f>ref*1.4142&&f/2>=LO)f/=2;notes.push([dur-beat*.5,f,.8]);melPrevS=f}
-  notes.forEach(([q,f,v])=>celesta(B.melody.in,S_(f),T0+q,.16*v));
-  // ducking under narration (estimate; utterance events refine it below)
+  {let f=reg(H,LO),ref=melPrevS||f;while(f<ref/1.4142&&f*2<=HI)f*=2;while(f>ref*1.4142&&f/2>=LO)f/=2;notes.push([dur-beat*.5,f,.8,[]]);melPrevS=f}  // tonic ending
+  // N(w): companion partials sound softly with the melody note (α-weighted), snapped to the chord so they never clash
+  notes.forEach(([q,f,v,pp])=>{celesta(B.melody.in,S_(f),T0+q,k.celV*v);pp.forEach(p=>celesta(B.melody.in,S_(nearCT(p.f,q)),T0+q+.03,k.celV*v*.35*p.a))});
   if(narrOn()){duckTo(DUCK,T0+.05);duckTo(1,T0+Math.max(.5,dur-1.1))}else duckTo(1,T0)};
  // utterance events: duck while each phrase is spoken, swell at punctuation gaps between phrases
  if(window.SpeechSynthesisUtterance&&SS){const sp=SS.speak.bind(SS);SS.speak=function(u){try{u.addEventListener('start',()=>{if(sty()!='pure')duckTo(DUCK)});u.addEventListener('end',()=>{if(sty()!='pure')duckTo(1)})}catch(e){}return sp(u)}}
@@ -1193,5 +1213,10 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
 
 // (Thanksgiving opening removed) restore a resume point saved by a session of the briefly-live opening, then forget it
 try{const r=JSON.parse(localStorage.getItem('ltThanksResume')||'null');if(r&&r.pos){S.pos=r.pos;S.rangeEnd=r.end||null;persist()}localStorage.removeItem('ltThanksResume')}catch(e){}
+
+// ---- E(v,t): per-verse emotion (NRC VAD Lexicon aggregates, tools/build_vad.py -> vad/*.json, 2-digit percentiles per dimension)
+const VADC={};function vadLoad(b){if(VADC[b])return Promise.resolve(VADC[b]);if(!MB[b])return Promise.resolve(null);return cachedJSON('vad/'+MB[b][1]+'?v=2026101221','lt-vad-v1').then(o=>VADC[b]=o).catch(e=>{console.warn('VAD '+b+' unavailable',e);return null})}
+function verseE(p){try{const s=VADC[p.b][p.c-1],x=s.slice((p.v-1)*6,(p.v-1)*6+6);if(x.length<6)throw 0;return{v:+x.slice(0,2)/99,a:+x.slice(2,4)/99,d:+x.slice(4,6)/99}}catch(e){return{v:.5,a:.5,d:.5}}}
+function emoLabel(E){return(E.v>.7?'joy':E.v>.5?'peace':E.v>.32?'longing':'sorrow')+' · '+(E.a>.62?'stirring':E.a>.38?'moving':'still')+' · '+(E.d>.65?'majestic':E.d>.38?'steady':'humble')}
 </script>
 </body></html>
