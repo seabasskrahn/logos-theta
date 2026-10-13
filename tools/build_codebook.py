@@ -112,6 +112,7 @@ for f in glob.glob(os.path.join(SRC, 'morphhb/wlc/*.xml')):
             l = 'H' + nums[-1]; ls.append(l)
             forms[heb_cons(w[2])][l] += 1
         hv.append((gi(b, c, v), ls))
+json.dump(hv, open(os.path.join(SRC, 'lemmas_heb.json'), 'w'))  # per-verse lemmas, reused by build_vad.py
 save('heb.json', {'lex': signatures(hv), 'forms': {k: c.most_common(1)[0][0] for k, c in forms.items() if k}})
 
 # Greek (MorphGNT SBLGNT)
@@ -127,6 +128,7 @@ for f in sorted(glob.glob(os.path.join(SRC, 'sblgnt/*-morphgnt.txt'))):
             cur, ls = key, []
         l = 'G' + p[6]; ls.append(l); forms[grk_norm(p[4])][l] += 1
 gv.append((gi(names[cur[0]], cur[1], cur[2]), ls))
+json.dump(gv, open(os.path.join(SRC, 'lemmas_grk.json'), 'w'))
 save('grk.json', {'lex': signatures(gv), 'forms': {k: c.most_common(1)[0][0] for k, c in forms.items() if k}})
 
 # English (KJV stems), whole Bible
@@ -136,7 +138,20 @@ for b, cs in META:
     for ci, ch in enumerate(d['c']):
         for vi, t in enumerate(ch):
             ev.append((gi(b, ci+1, vi+1), [s for s in map(eng_stem, t.split()) if s]))
-save('eng.json', {'lex': signatures(ev)})
+# BSB (public domain): stems the KJV lacks get their own entries; KJV entries stay exactly as before (R(w) unchanged).
+# Ranks for new stems continue after the KJV (BSB verses indexed after the whole KJV); first = the BSB verse index.
+bv = []
+for b, cs in META:
+    p = os.path.join(ROOT, 'bsb', b.replace(' ', '') + '.json')
+    if not os.path.exists(p): continue
+    d = json.load(open(p, encoding='utf-8'))
+    for ci, ch in enumerate(d['c']):
+        for vi, t in enumerate(ch):
+            bv.append((TOTAL + gi(b, ci+1, vi+1), [s for s in map(eng_stem, t.split()) if s]))
+kj = signatures(ev); both = signatures(ev + bv)
+for l, sig in both.items():
+    if l not in kj: kj[l] = sig[:5] + [sig[5] - TOTAL if sig[5] >= TOTAL else sig[5]]
+save('eng.json', {'lex': kj})
 save('meta.json', {'total': TOTAL, 'credits': 'Hebrew lemmas: Open Scriptures Hebrew Bible (OSHB, WLC), CC-BY 4.0. Greek lemmas: MorphGNT SBLGNT, CC-BY-SA 3.0. English: KJV (public domain).'})
 
 # Places (OpenBible.info Bible Geocoding Data, ancient.jsonl, CC-BY 4.0): only places the KJV names, with their KJV verses
