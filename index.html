@@ -515,7 +515,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101216',BUILD_LABEL='build Live · 2026101216';
+const BUILD='2026101217',BUILD_LABEL='build Live · 2026101217';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -869,7 +869,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'xrefTabs',l:'Show cross-reference tabs',d:'Tappable tabs under the current verse.',t:'chk',g:()=>S.xrefTabs,s:v=>{S.xrefTabs=v;persist();applyDisplay()}},
   {k:'rsvp',l:'Speed-reading view (RSVP)',d:'Flash the words one chunk at a time in the player, locked to the voice and tones.',t:'chk',g:()=>!!S.rsvp,s:v=>{S.rsvp=v;persist();rsvpApply()}},
   {k:'rsvpN',l:'RSVP chunk size',d:'Words per flash.',t:'range',min:1,max:5,step:1,g:()=>S.rsvpN||1,s:v=>{S.rsvpN=+v;persist();rsvpApply()},f:x=>x+(x>1?' words':' word')},
-  {k:'viz',l:'Background visual',d:'Animated visual behind the player, driven by the sound.',t:'sel',o:()=>[['eye','Eye waves'],['spec','Spectrum'],['stars','Starfield'],['off','Off']],g:()=>S.viz||'eye',s:v=>{S.viz=v;persist()}},
+  {k:'viz',l:'Background visual',d:'Animated visual behind the player, driven by the sound.',t:'sel',o:()=>[['eye','Eye waves'],['cym','Cymatics'],['spec','Spectrum'],['stars','Starfield'],['off','Off']],g:()=>S.viz||'eye',s:v=>{S.viz=v;persist()}},
   {k:'he',l:'Original text',d:'Show Torah Hebrew / NT Greek where bundled.',t:'chk',g:()=>S.r.he,s:v=>ctl(rhe,v,'change')}]],
  ['int','🔗','Intersect','Follow the thread, cross-refs shown',[
   {k:'thread',l:'Follow the thread',d:'Hop to the strongest unvisited cross reference.',t:'chk',g:()=>S.thread,s:v=>ctl(thread,v,'change')},
@@ -957,7 +957,7 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  function draw(now){const W=cv.width,H=cv.height,st=S.viz||'eye';c2.clearRect(0,0,W,H);if(st=='off'||!document.body.classList.contains('fpo')){scr.style.display='none';return}scr.style.display='';
   if(!an&&ctx&&gain){an=ctx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=.8;gain.connect(an);fd=new Uint8Array(an.frequencyBinCount);td=new Uint8Array(an.fftSize)}
   if(an){an.getByteFrequencyData(fd);an.getByteTimeDomainData(td)}const lvl=fd?fd.slice(0,64).reduce((a,x)=>a+x,0)/64/255:0,T=now/1000;c2.globalAlpha=.55;
-  if(st=='spec'){const n=48;for(let i=0;i<n;i++){const v=fd?fd[Math.floor(Math.pow(i/n,1.6)*fd.length*.5)]/255:.05,h=v*H*.6,x=i*W/n;c2.fillStyle=`hsl(${40+i*4},70%,${35+v*30}%)`;c2.fillRect(x+1,H-h,W/n-2,h);c2.fillRect(x+1,0,W/n-2,h*.3)}}
+  if(st=='cym'&&window.drawCym){c2.globalAlpha=1;drawCym(c2,W,H,now,fd,lvl,mob,BEND)}else if(st=='spec'){const n=48;for(let i=0;i<n;i++){const v=fd?fd[Math.floor(Math.pow(i/n,1.6)*fd.length*.5)]/255:.05,h=v*H*.6,x=i*W/n;c2.fillStyle=`hsl(${40+i*4},70%,${35+v*30}%)`;c2.fillRect(x+1,H-h,W/n-2,h);c2.fillRect(x+1,0,W/n-2,h*.3)}}
   else if(st=='stars'){if(!stars)stars=[...Array(mob?90:180)].map(()=>[Math.random()*2-1,Math.random()*2-1,Math.random()]);c2.fillStyle='#e8e0ff';stars.forEach(s=>{s[2]-=.004+lvl*.03;if(s[2]<=.02){s[0]=Math.random()*2-1;s[1]=Math.random()*2-1;s[2]=1}const x=W/2+s[0]/s[2]*W*.3,y=H/2+s[1]/s[2]*H*.3,r=(1-s[2])*3;c2.fillRect(x,y,r,r)})}
   else{if(window.ROOM&&ROOM.on&&ROOM.fd){const R0=Math.min(W,H)*.34,n=96;c2.strokeStyle='rgba(160,200,180,.22)';c2.lineWidth=1.5;c2.beginPath();for(let i=0;i<=n;i++){const v=ROOM.fd[Math.floor(Math.pow((i%n)/n,1.5)*ROOM.fd.length*.4)]/255,a=i/n*Math.PI*2,r=R0*(1+v*.35);const x=W/2+r*Math.cos(a),y=H/2+r*Math.sin(a);i?c2.lineTo(x,y):c2.moveTo(x,y)}c2.stroke()}
    const cy=H/2+BEND.y*H*.15,amp=H*(.06+lvl*.25)*(1+Math.abs(BEND.x)*.6),tn=window.LT_TONE,age=tn?(now-tn.t)/1000:9,pulse=Math.max(0,1-age/1.2),
@@ -1018,5 +1018,34 @@ baseApply();
 window.setMode=function(v){S.mode=v=='live'?'live':'word';persist();if(S.mode=='word'){if(window.ROOM&&ROOM.on)roomStop()}else if(S.room)roomStart();baseApply();modeChip();try{if(ltSet.classList.contains('on'))setDraw()}catch(e){}};
 function modeChip(){const b=$('modeB');if(b){b.textContent=isLive()?'🎚 Live':'📖 Word';b.classList.toggle('on',isLive())}}
 document.querySelector('.rsb').insertAdjacentHTML('beforeend','<button id="modeB" onclick="setMode(isLive()?\'word\':\'live\')" title="Tone mode: Word (pure) or Live (room + your baseline)"></button>');modeChip();
+
+// ---- Cymatics background (build 2026101217): Chladni plate sand, Bessel ripple dish, Rubens' tube flames. Typed arrays only.
+(function(){const PAIRS=[];for(let n=1;n<=14;n++)for(let m=n+1;m<=15;m++)PAIRS.push([n,m,n*n+m*m]);
+ // square plate (free-edge approximation): z = cos(nπx)cos(mπy) - cos(mπx)cos(nπy), x,y in [0,1]; f ∝ n²+m²
+ const mode=r=>{const K=5*r;let b=PAIRS[0];for(const p of PAIRS)if(Math.abs(p[2]-K)<Math.abs(b[2]-K))b=p;return b};
+ window.cymMode=mode;
+ const PI=Math.PI,chl=(n,m,x,y)=>Math.cos(n*PI*x)*Math.cos(m*PI*y)-Math.cos(m*PI*x)*Math.cos(n*PI*y);
+ // Bessel J0 (Abramowitz & Stegun 9.4.1/9.4.3)
+ function J0(x){x=Math.abs(x);if(x<=3){const y=(x/3)**2;return 1+y*(-2.2499997+y*(1.2656208+y*(-.3163866+y*(.0444479+y*(-.0039444+y*.00021)))))}
+  const y=3/x,f=.79788456+y*(-.00000077+y*(-.0055274+y*(-.00009512+y*(.00137237+y*(-.00072805+y*.00014476))))),t=x-.78539816+y*(-.04166397+y*(-.00003954+y*(.00262573+y*(-.00054125+y*(-.00029333+y*.00013558)))));return f*Math.cos(t)/Math.sqrt(x)}
+ let N=0,px=null,py=null,cur=[1,2,5],cur2=null,w2=0,lastHz=0;window.CYM={get mode(){return cur},get mode2(){return cur2}};
+ function init(mob){N=mob?1800:4500;px=new Float32Array(N);py=new Float32Array(N);for(let i=0;i<N;i++){px[i]=Math.random();py[i]=Math.random()}}
+ window.drawCym=function(c,W,H,now,fd,lvl,mob,B){if(!px)init(mob);const T=now/1000,tn=window.LT_TONE,cf=(typeof BASEF=='function'?BASEF():110)*TUNE();
+  const bend=B?Math.pow(2,B.x*.8):1;  // touch-drag shifts the plate mode (exaggerated vs the ±40 cent audio detune so it is visible)
+  if(tn&&(tn.hz!=lastHz||B&&B.on)){lastHz=tn.hz;cur=mode(tn.hz/cf*bend);const p2=tn.p&&tn.p[1]&&tn.p[1]!=tn.hz?mode(tn.p[1]/cf*bend):null;cur2=p2&&p2[2]!=cur[2]?p2:null}
+  const age=tn?(now-tn.t)/1000:9;w2=cur2?.35*Math.max(0,1-age/1.5):0;const drive=.006+.02*Math.max(0,1-age/1.2)+.01*lvl,[n,m]=cur;
+  const S0=Math.min(W,H)*.62,ox=(W-S0)/2,oy=(H-S0)/2-H*.04;
+  // ripple dish behind the plate: circular membrane J0(k r) cos(ωt), pulsing with the drone level and the theta beat
+  const R0=S0*.78,th=+S.band||6,pul=.5+.5*Math.cos(2*PI*th*T*.25),k0=2.405*(3+Math.round(cf/110));c.lineWidth=2;
+  for(let i=1;i<=22;i++){const r=i/22,v=J0(k0*r)*Math.cos(T*2)*pul;c.strokeStyle=v>0?`rgba(90,143,224,${.06+.25*v*(.4+lvl)})`:`rgba(217,182,90,${.06-.2*v*(.4+lvl)})`;c.beginPath();c.arc(W/2,oy+S0/2,R0*r,0,7);c.stroke()}
+  c.strokeStyle='rgba(200,190,230,.18)';c.strokeRect(ox,oy,S0,S0);
+  // sand: jitter proportional to local amplitude, so grains leave antinodes and collect on the nodal lines
+  c.fillStyle='rgba(236,220,170,.55)';const sz=mob?1.6:1.3;
+  for(let i=0;i<N;i++){let x=px[i],y=py[i];const a=Math.abs((1-w2)*chl(n,m,x,y)+(cur2?w2*chl(cur2[0],cur2[1],x,y):0));
+   const j=drive*a*2;x+=(Math.random()-.5)*j;y+=(Math.random()-.5)*j;if(x<0)x=-x;if(x>1)x=2-x;if(y<0)y=-y;if(y>1)y=2-y;px[i]=x;py[i]=y;c.fillRect(ox+x*S0,oy+y*S0,sz,sz)}
+  // Rubens' tube along the bottom: flame height ∝ |standing wave| at the drone frequency, a few half-waves per 55 Hz
+  const bars=mob?40:72,hw=Math.max(1,Math.round(cf*2/55)),bw=W/bars;for(let i=0;i<bars;i++){const u=(i+.5)/bars,h=(.25+.75*Math.abs(Math.sin(hw*PI*u)))*(.4+lvl)*H*.09*(0.85+.3*Math.random());
+   const g=c.createLinearGradient(0,H,0,H-h);g.addColorStop(0,'rgba(90,143,224,.5)');g.addColorStop(.4,'rgba(240,170,60,.45)');g.addColorStop(1,'rgba(240,120,40,0)');c.fillStyle=g;c.fillRect(i*bw+bw*.2,H-h,bw*.6,h)}}
+})();
 </script>
 </body></html>
