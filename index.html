@@ -87,6 +87,7 @@ button{touch-action:manipulation}select,input,textarea{font:inherit;background:#
  <button onclick="nightOn()">🌙 Night mode</button><button onclick="prayOn()">🙏 Pray mode</button></div>
  <div class="row"><label><input type="checkbox" id="autoP"> Auto play (continue through the Bible)</label><label><input type="checkbox" id="thread"> Follow the thread (hop to the strongest unvisited cross-reference)</label><label><input type="checkbox" id="narr"> KJV narration (speech)</label><select id="voice"></select></div>
  <div class="dim" id="bl1"></div><div class="dim">Narration uses your device's speechSynthesis voice; it is not included in the saved WAV.</div><div class="dim">Use headphones for the binaural layer. Output is capped at half volume.</div></div></div>
+<script src="engine.js?v=2026101301"></script>
 <script>
 // ---- native bridge (APK only): when running in the Capacitor app, speechSynthesis is backed by native Android TTS so it keeps going in the background
 window.LT_NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());window.LT_VMAX=window.LT_NATIVE?4:3;
@@ -129,8 +130,8 @@ const hebCons=w=>w.replace(/[^\u05D0-\u05EA]/g,'');
 // partials snapped to consonances (lids). See SONOLUMINA_ALGORITHM.md. Entry: [step,octave,c1,c2,count,first].
 let F0=110;const isLive=()=>S.mode=='live',BASEF=()=>isLive()&&S.base&&S.baseHz?S.baseHz/TUNE():110,SOLF=[174,285,396,417,528,639,741,852,963],solfOn=()=>isLive()&&!!S.solf,
  solfF=f=>{if(!solfOn()||!f)return f;let b=f,bd=1e9;for(const s0 of SOLF){let q=s0;while(q>f*1.4142)q/=2;while(q<f/1.4142)q*=2;const d=Math.abs(Math.log(q/f));if(d<bd){bd=d;b=q}}return f*Math.pow(b/f,S.solfK==null?.5:+S.solfK)},
- padBase=()=>{if(solfOn()&&S.solfA){let a=+S.solfA;const c=F0*TUNE();while(a>c*1.4142)a/=2;while(a<c/1.4142)a*=2;return a/TUNE()}return F0},JUST=[1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8],JUSTS=['1/1','16/15','9/8','6/5','5/4','4/3','45/32','3/2','8/5','5/3','9/5','15/8'],CONS=[1,5/4,4/3,3/2,2];
-const consSnap=r=>{let o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let bi=0;CONS.forEach((c,i)=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/CONS[bi])))bi=i});return CONS[bi]*o};
+ padBase=()=>{if(solfOn()&&S.solfA){let a=+S.solfA;const c=F0*TUNE();while(a>c*1.4142)a/=2;while(a<c/1.4142)a*=2;return a/TUNE()}return F0},JUST=SonoEngine.J,JUSTS=SonoEngine.JS,CONS=SonoEngine.CB_CONS;   // tone math lives in engine.js
+const consSnap=SonoEngine.consSnap;
 // instruments: book genre -> harmonic recipe for the word-tone waveform
 const GENRES=[['Law',[1,.28,.1]],['History',[1,.15,.05]],['Poetry/Wisdom',[1,.1]],['Prophets',[1,.22,.1,.05]],['Gospels',[1]],['Epistles',[1,0,.12,0,.05]],['Apocalyptic',[1,0,.18,0,.08]]];
 const genreOf=b=>{const i=META.findIndex(m=>m[0]==b);return i<0?4:i<5?0:i<17?1:i<22?2:i==65?6:i<39?3:i<43?4:i==43?1:5};
@@ -139,8 +140,8 @@ const curBook=()=>(S.pos&&S.pos.b)||(cur&&(cur.b||cur.rb))||'Genesis';
 function placeOf(w,g){const P=CB.places;if(!P||g==null)return null;const k=String(w).toLowerCase().replace(/[^a-z]/g,'');const L=P[k];if(!L)return null;const e=L.find(x=>x[3].includes(g));return e?{name:e[0],type:e[1],modern:e[2]}:null}
 function cbLook(raw,g){F0=BASEF();let k,d,lang,w=raw;const h=hebCons(raw),gk=h?'':grkNorm(raw);
  if(h){lang='heb';d=CB.heb;w=h;k=d&&d.forms[h]}else if(gk){lang='grk';d=CB.grk;k=d&&d.forms[gk];w=raw.replace(/[^\u0370-\u03FF\u1F00-\u1FFF]/g,'')}else{lang='eng';d=CB.eng;k=engStem(raw);w=raw.replace(/[^A-Za-z']/g,'')}
- const x=d&&k&&d.lex[k];if(!x)return{w,lang,key:null,place:lang=='eng'?placeOf(w,g):null};const f=F0*JUST[x[0]]*Math.pow(2,x[1]);
- return{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[5]!=null?x[4]:x[3],first:x[5]!=null?x[5]:x[4],ratio:JUSTS[x[0]],oct:x[1],hz:[f,f*CONS[x[2]],f*CONS[x[3]]],place:lang=='eng'?placeOf(w,g):null}}
+ const x=d&&k&&d.lex[k];if(!x)return{w,lang,key:null,place:lang=='eng'?placeOf(w,g):null};const f=SonoEngine.tone(x[0],x[1],F0);
+ return{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[5]!=null?x[4]:x[3],first:x[5]!=null?x[5]:x[4],ratio:JUSTS[x[0]],oct:x[1],hz:SonoEngine.entryHz(x,F0),place:lang=='eng'?placeOf(w,g):null}}
 function gRef(g){for(const[b,,cs]of META)for(let c=0;c<cs.length;c++){if(g<cs[c])return b+' '+(c+1)+':'+(g+1);g-=cs[c]}return'?'}
 // whole-verse drone: the signatures of the verse's key lemmas (its 3 rarest, i.e. most distinctive, words), blended
 function verseSig(text,g){const ws=cbWords(text).map(w=>cbLook(w,g)),ss=ws.filter(x=>x.key),key=ss.slice().sort((a,b)=>a.n-b.n).slice(0,3);return{ws,key,hz:[F0].concat(key.map(x=>F0*consSnap(x.hz[0]/F0)))}}
@@ -1180,21 +1181,18 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
  // F0: home note (110 Hz, ×432/440, or the Live baseline; Room/Solfeggio as Live modifiers)   R: Eye codebook ratio (cbLook)
  // E: verse emotion (NRC VAD, smoothed arcs + book drift, vad/*.json)   K: emotion -> mode, tempo, density, loudness, register
  // N: companions (codebook partials) + OpenBible cross-refs, α = normalised strength    Res: the Resolution rule
- const MODES={Lydian:[1,9/8,5/4,45/32,3/2,5/3,15/8],Ionian:[1,9/8,5/4,4/3,3/2,5/3,15/8],Mixolydian:[1,9/8,5/4,4/3,3/2,5/3,16/9],Dorian:[1,9/8,6/5,4/3,3/2,5/3,16/9],Aeolian:[1,9/8,6/5,4/3,3/2,8/5,9/5]};
- const DEG={I:[0,2,4],vi:[5,7,9],IV:[3,5,7],V:[4,6,8]},RING=['I','vi','IV','V'];
+ const SE=SonoEngine,MODES=SE.MODES,DEG=SE.DEG,RING=SE.RING;   // the equation itself lives in engine.js
  const sty=()=>S.style||'score';window.musicStyle=sty;
- const deg=(sc,d)=>sc[d%7]*Math.pow(2,Math.floor(d/7));
  // chord tones of a degree-chord in a mode; the cadential V always takes the leading tone (15/8) so V-I resolves home
- const chordR=(mode,c,cad)=>DEG[c].map(d=>{const sc=MODES[mode];return(cad&&c=='V'&&d%7==6)?15/8*Math.pow(2,Math.floor(d/7)):deg(sc,d)});
+ const chordR=SE.chordR;
  // K(E): emotion -> music (v,a,d in 0..1)
- const Kmap=E=>{const v=E.v,a=E.a,d=E.d,mode=v>.7?(d>.6?'Lydian':'Ionian'):v>.5?'Mixolydian':v>.32?'Dorian':'Aeolian';
-  return{mode,bpm:54+30*a,dens:a>.55?8:a>.3?6:4,loud:.75+.5*a,reg:Math.pow(2,(d-.5)*.6),bright:700+900*d,celV:.12+.08*d,strV:.04+.03*(1-a)+.02*d}};
+ const Kmap=SE.K;
  window.LT_K=Kmap;
- const snapK=(f,base,mode)=>{const SC=MODES[mode];let r=f/base,o=1;while(r>=2){r/=2;o*=2}while(r<1){r*=2;o/=2}let b=SC[0];SC.concat([2]).forEach(c=>{if(Math.abs(Math.log(r/c))<Math.abs(Math.log(r/b)))b=c});return base*b*o};
+ const snapK=SE.snapMode;
  // Sound(w,t): one word's sounding frequency and its network partials (companions, α = 2/3, 1/3)
- window.Sound=function(x,E){const k=Kmap(E||{v:.5,a:.5,d:.5}),home=F0*TUNE(),f=solfF(snapK(x.hz[0]*TUNE(),home,k.mode));
-  return{f,mode:k.mode,parts:[[x.hz[1],2/3],[x.hz[2],1/3]].filter(p=>p[0]&&p[0]!=x.hz[0]).map(([h,al])=>({f:solfF(snapK(f*h/x.hz[0],home,k.mode)),a:al}))}};
- const reg=(f,lo)=>{while(f<lo)f*=2;while(f>=lo*2)f/=2;return f};
+ // tuning (TUNE) and Solfeggio (solfF) are optional modifiers applied outside the engine
+ window.Sound=function(x,E){const TU=TUNE();return SE.sound(x.hz.map(h=>h*TU),E,F0*TU,solfF)};
+ const reg=SE.reg;
  let duck=null;function duckInit(){if(duck||!bed)return;duck=ctx.createGain();duck.gain.value=1;try{bed.out.disconnect()}catch(e){}bed.out.connect(duck).connect(gain)}
  window.duckTo=function(v,t,tau){if(!duck)return;const T=t||ctx.currentTime;duck.gain.cancelScheduledValues(T);duck.gain.setTargetAtTime(v,T,tau||(v<1?.12:.6))};
  const DUCK=Math.pow(10,-8/20);
@@ -1216,16 +1214,16 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
  let lastMode='Ionian';
  window.scoreVerse=function(vs,dur,eng){if(sty()=='pure'||!bed||!bed.bus)return;duckInit();const T0=ctx.currentTime+.06,TU=TUNE(),B=bed.bus,H=F0*TU;
   [bed.g[0],bed.g[2],bed.g[3]].concat(bed.dv.map(d=>d.y)).forEach(g=>g.gain.setTargetAtTime(0,T0,.3));
-  const E=window.verseE?verseE(S.pos):{v:.5,a:.5,d:.5},k=Kmap(E),mode=k.mode;window.LT_E=Object.assign({},E,{mode});
+  const E=window.verseE?verseE(S.pos):{v:.5,a:.5,d:.5},k=Kmap(E),mode=k.mode;window.LT_E=Object.assign({},E,{mode});SE.setState({S:k,Ebar:E,t0:T0});
   const sp=Math.min(2,Math.max(.75,+S.speed||1)),beat0=60/(k.bpm*sp),nb=Math.max(2,Math.round(dur/(4*beat0))),bar=dur/nb,beat=bar/4;
   // loudness and brightness follow arousal and dominance (smoothly, at the verse boundary)
   window.LT_LOUD=k.loud;bed.lp.frequency.setTargetAtTime(Math.min(2400,1100+k.bright*.6),T0,1.5);
-  const rel=vs.hz.slice(1).map(h=>h/F0);let c0='I',bs=1e9;RING.forEach(c=>{let sc=0;rel.forEach(r=>{sc+=Math.min(...chordR(mode,c).map(t=>Math.abs(Math.log2(reg(r,1)/reg(t,1)))))});if(sc<bs-1e-9){bs=sc;c0=c}});
+  const c0=SE.bestChord(mode,vs.hz.slice(1).map(h=>h/F0));
   // Res: V-I (authentic) normally, IV-I (plagal 'Amen') at a chapter end
   let chEndV=false;try{const p=S.pos;chEndV=!!(p&&MB[p.b]&&p.v>=MB[p.b][2][p.c-1])}catch(e){}
-  const i0=RING.indexOf(c0),prog=[...Array(nb)].map((_,b)=>RING[(i0+b)%4]);prog[nb-1]='I';prog[nb-2]=chEndV?'IV':'V';if(nb>2&&prog[nb-3]==prog[nb-2])prog[nb-3]=chEndV?'vi':'IV';
+  const prog=SE.progression(nb,c0,chEndV);
   // modulation at the verse boundary through a pivot chord: the first bar uses a chord whose tones exist in both modes
-  let pivot=null;if(mode!=lastMode){const same=c=>{const a=chordR(lastMode,c),b=chordR(mode,c);return a.every((x,i)=>Math.abs(x-b[i])<1e-9)};pivot=['IV','V','vi','I'].find(same)||null;if(pivot&&nb>2)prog[0]=pivot}
+  const pivot=SE.pivot(lastMode,mode);if(pivot&&nb>2)prog[0]=pivot;
   lastMode=mode;const cad=(b)=>b==nb-2;const S_=x=>solfF(x);
   prog.forEach((c,b)=>{const t=T0+b*bar,ct=chordR(mode,c,cad(b)).map(r=>H*r);
    cello(B.bass.in,S_(reg(ct[0],65)),t,bar*.96,.22);
