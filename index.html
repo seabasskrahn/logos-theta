@@ -839,8 +839,6 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
  const sp=x=>(+x).toFixed(2).replace(/\.?0+$/,'')+'×';
  const C=[
  ['play','▶','Playback','Speed, auto play, chunk, repeat, crossfade',[
-  {k:'thanks',l:'Thanksgiving opening',d:'On the first Play of each session, play Psalm 100 ("Enter into his gates with thanksgiving") with narration and the score, then continue where you left off.',t:'chk',g:()=>S.thanks!==false,s:v=>{S.thanks=v;persist()}},
-  {k:'thanksSkip',l:'Skip the opening',d:'Only while Psalm 100 is playing.',t:'btn',b:'Skip ⏭',s:()=>{if(window.LT_THANKS())thanksSkip()}},
   {k:'speed',l:'Speed',d:'Reading and tone pace (same as the player dial).',t:'range',min:1,max:()=>dMax,step:.25,g:()=>+S.speed,s:v=>speedTo(+v),f:sp},
   {k:'dmax',l:'Speed dial maximum',d:'Highest value on the speed dial.',t:'num',min:1,step:.25,g:()=>dMax,s:v=>dialSetMax(+v)},
   {k:'auto',l:'Auto play',d:'Keep going through the Bible after a range ends.',t:'chk',g:()=>S.auto,s:v=>setAuto(v)},
@@ -1182,22 +1180,7 @@ window.mixApply=function(){if(!bed||!bed.bus)return;const T=ctx.currentTime;MIXK
  if(window.SpeechSynthesisUtterance&&SS){const sp=SS.speak.bind(SS);SS.speak=function(u){try{u.addEventListener('start',()=>{if(sty()!='pure')duckTo(DUCK)});u.addEventListener('end',()=>{if(sty()!='pure')duckTo(1)})}catch(e){}return sp(u)}}
 })();
 
-// ---- Thanksgiving opening (build 2026101220): first Play of each session plays Psalm 100 (KJV, 1-5) with narration and the score,
-// then continues where the listener left off. The resume point is saved first, so closing mid-opening never loses it.
-(function(){const RK='ltThanksResume';
- try{const r=JSON.parse(localStorage.getItem(RK)||'null');if(r&&r.pos){S.pos=r.pos;S.rangeEnd=r.end||null;persist()}localStorage.removeItem(RK)}catch(e){}
- let act=null;window.LT_THANKS=()=>act;
- document.body.insertAdjacentHTML('beforeend','<div id="thx" style="position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translateX(-50%);z-index:35;background:#1d1a26ee;border:1px solid #d9b65a55;color:#ece9f2;border-radius:14px;padding:10px 14px;text-align:center;display:none;max-width:90vw"><div style="font:600 16px Georgia,serif;color:#d9b65a">Enter into his gates with thanksgiving</div><div class="dim" style="font-size:12px;margin:2px 0 6px">Psalm 100 · then on to where you left off</div><button onclick="thanksSkip()">Skip ⏭</button></div>');
- function finish(go){if(!act)return;const a=act;act=null;thx.style.display='none';try{localStorage.removeItem(RK)}catch(e){}
-  if(a.narr!=null&&S.narr!=a.narr){narr.checked=a.narr;S.narr=a.narr;persist()}
-  if(go){if(a.pos&&MB[a.pos.b])playAt(a.pos.b,a.pos.c,a.pos.v,a.end||chunkEnd(a.pos.b,a.pos.c,a.pos.v));else if(a.sel)load(a.sel,true)}}
- window.thanksSkip=()=>finish(true);
- const _tg=toggle;toggle=function(){if(!act&&!isOn()&&S.thanks!==false&&!sessionStorage.getItem('ltThanked')&&MB.Psalms){sessionStorage.setItem('ltThanked','1');
-   act={pos:S.pos&&S.pos.b?{...S.pos}:null,end:S.rangeEnd?{...S.rangeEnd}:null,narr:S.narr,sel:cur||S.sel};try{localStorage.setItem(RK,JSON.stringify({pos:act.pos,end:act.end}))}catch(e){}
-   if(!act.pos&&!act.sel){act=null;return _tg.apply(this,arguments)}
-   if(!S.narr&&SS){narr.checked=true;S.narr=true}thx.style.display='';ensureCtx();playAt('Psalms',100,1,{b:'Psalms',c:100,v:5});return}
-  return _tg.apply(this,arguments)};
- const _adv=advance;advance=function(){const p=S.pos;if(act&&p&&p.b=='Psalms'&&p.c==100&&p.v>=5)return finish(true);if(act&&p&&p.b!='Psalms')finish(false);return _adv.apply(this,arguments)};
-})();
+// (Thanksgiving opening removed) restore a resume point saved by a session of the briefly-live opening, then forget it
+try{const r=JSON.parse(localStorage.getItem('ltThanksResume')||'null');if(r&&r.pos){S.pos=r.pos;S.rangeEnd=r.end||null;persist()}localStorage.removeItem('ltThanksResume')}catch(e){}
 </script>
 </body></html>
