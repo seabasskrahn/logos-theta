@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Psalm 23 Sound Map</title>
+<style>body{background:#05060a;color:#eee;font-family:sans-serif;text-align:center;margin:0;padding:20px}button{font-size:22px;padding:16px 40px;border-radius:40px;border:0;background:#c9a24a;color:#000}canvas{width:100%;max-width:700px;height:300px}#v{min-height:3em;margin:12px;font-size:18px}</style></head><body>
+<h2>Psalm 23 Sound Map</h2><button id="p">Play</button><div id="v"></div><canvas id="c" width="700" height="300"></canvas>
+<script>
+const F0=110;
+const arcs=[
+{v:"v1 The LORD is my shepherd (links to Genesis 1)",r:4,col:"#9fd8ff",dist:0.95,dur:5,wave:"sine"},
+{v:"v4 Valley of the shadow (links to John 10, the Good Shepherd)",r:1.5,col:"#ffb347",dist:0.8,dur:5,wave:"triangle"},
+{v:"v5 A table before my enemies (links to the Last Supper)",r:2.5,col:"#6fdc8c",dist:0.5,dur:4,wave:"triangle"},
+{v:"v6 Goodness and mercy follow me (loops back to v1)",r:2,col:"#ff5a5a",dist:0.08,dur:3,wave:"sine"}];
+const c=document.getElementById('c').getContext('2d');
+function draw(n,prog){c.clearRect(0,0,700,300);arcs.slice(0,n+1).forEach((a,i)=>{const w=a.dist*600,x=350-w/2;c.strokeStyle=a.col;c.lineWidth=4;c.globalAlpha=i<n?0.5:1;c.beginPath();c.ellipse(350,280,w/2,Math.max(w*0.4,20),0,Math.PI,Math.PI+Math.PI*(i<n?1:prog));c.stroke();});}
+document.getElementById('p').onclick=async()=>{const ac=new AudioContext();const m=ac.createGain();m.gain.value=0.25;m.connect(ac.destination);
+const d=ac.createOscillator();d.frequency.value=F0/2;const dg=ac.createGain();dg.gain.value=0.15;d.connect(dg).connect(m);d.start();
+let t=ac.currentTime+0.3;
+arcs.forEach((a,i)=>{const o=ac.createOscillator(),g=ac.createGain(),o2=ac.createOscillator();o.type=a.wave;o2.type=a.wave;
+const start=F0*a.r*(1+a.dist*0.5),end=F0*a.r;o.frequency.setValueAtTime(start,t);o.frequency.exponentialRampToValueAtTime(end,t+a.dur);o2.frequency.setValueAtTime(F0*1.5,t);
+const g2=ac.createGain();g2.gain.value=0.15;
+g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.5,t+a.dur*0.4);g.gain.linearRampToValueAtTime(0,t+a.dur);
+o.connect(g).connect(m);o2.connect(g2).connect(g);o.start(t);o2.start(t);o.stop(t+a.dur);o2.stop(t+a.dur);
+setTimeout(()=>{document.getElementById('v').textContent=a.v;let s=performance.now();(function f(){const p=Math.min(1,(performance.now()-s)/(a.dur*1000));draw(i,p);if(p<1)requestAnimationFrame(f)})()},(t-ac.currentTime)*1000);
+t+=a.dur*0.85;});
+// resolution: V-I back to home
+[F0*3,F0*2,F0].forEach((f,k)=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.35/(k+1),t+1);g.gain.linearRampToValueAtTime(0,t+6);o.connect(g).connect(m);o.start(t);o.stop(t+6);});
+setTimeout(()=>document.getElementById('v').textContent="Resolution: the loop closes home (I dwell in the house of the LORD forever)",(t-ac.currentTime)*1000);
+dg.gain.linearRampToValueAtTime(0,t+6);d.stop(t+6.5);};
+</script></body></html>
