@@ -533,12 +533,13 @@ function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.fi
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
 const BUILD='2026101305',BUILD_LABEL='build Live · 2026101305';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
- if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
+ if(Number(j.build)>Number(BUILD)){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
-// ---- live updates: poll version.json every 60s (no-store); auto-reload onto a new build (waits while speech is playing); refresh button in the app
+// ---- live updates: poll version.json every 60s (no-store); show 'Update available' banner for a newer build (never auto-reloads); refresh button in the app
 (function(){let pend=null;const go=b=>{location.replace(location.pathname+'?v='+b+location.hash)};
- async function poll(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(String(j.build)!==BUILD)pend=String(j.build)}catch(e){}
-  if(pend&&!(window.speechSynthesis&&speechSynthesis.speaking))go(pend)}
+ async function poll(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();const b=String(j.build);
+  // only a numerically NEWER build counts; never auto-reload (playback, narration, tones, MilkDrop, sleep/pray may be running) - show the banner instead
+  if(/^\d+$/.test(b)&&Number(b)>Number(BUILD)&&pend!==b){pend=b;versionCheck()}}catch(e){}}
  setInterval(poll,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
  if(window.LT_NATIVE){const b=document.createElement('button');b.textContent='\u21bb';b.title='Refresh';b.setAttribute('aria-label','Refresh');
   b.style.cssText='position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:9999;width:40px;height:40px;border-radius:50%;border:1px solid #d9b65a;background:#141218cc;color:#d9b65a;font-size:20px;opacity:.7';
