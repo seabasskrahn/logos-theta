@@ -87,7 +87,7 @@ button{touch-action:manipulation}select,input,textarea{font:inherit;background:#
  <button onclick="nightOn()">🌙 Night mode</button><button onclick="prayOn()">🙏 Pray mode</button></div>
  <div class="row"><label><input type="checkbox" id="autoP"> Auto play (continue through the Bible)</label><label><input type="checkbox" id="thread"> Follow the thread (hop to the strongest unvisited cross-reference)</label><label><input type="checkbox" id="narr"> KJV narration (speech)</label><select id="voice"></select></div>
  <div class="dim" id="bl1"></div><div class="dim">Narration uses your device's speechSynthesis voice; it is not included in the saved WAV.</div><div class="dim">Use headphones for the binaural layer. Output is capped at half volume.</div></div></div>
-<script src="engine.js?v=2026101304"></script>
+<script src="engine.js?v=2026101305"></script>
 <script>
 // ---- native bridge (APK only): when running in the Capacitor app, speechSynthesis is backed by native Android TTS so it keeps going in the background
 window.LT_NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());window.LT_VMAX=window.LT_NATIVE?4:3;
@@ -531,7 +531,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101304',BUILD_LABEL='build Live · 2026101304';
+const BUILD='2026101305',BUILD_LABEL='build Live · 2026101305';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -1265,5 +1265,17 @@ const VADC={};function vadLoad(b){if(VADC[b])return Promise.resolve(VADC[b]);if(
 let _eP=null,_eK='';function verseE(p){const E=verseE0(p),ck=p.b+'|'+p.c,vk=ck+'|'+p.v;if(_eK===vk)return _eP.s;const prev=(_eP&&_eP.ck===ck)?_eP.s:null,sm=SonoEngine.smooth(E,prev,0.5);_eP={ck,s:sm};_eK=vk;return sm}
 function verseE0(p){try{const s=VADC[p.b][p.c-1],x=s.slice((p.v-1)*6,(p.v-1)*6+6);if(x.length<6)throw 0;return{v:+x.slice(0,2)/99,a:+x.slice(2,4)/99,d:+x.slice(4,6)/99}}catch(e){return{v:.5,a:.5,d:.5}}}
 function emoLabel(E){return(E.v>.7?'joy':E.v>.5?'peace':E.v>.32?'longing':'sorrow')+' · '+(E.a>.62?'stirring':E.a>.38?'moving':'still')+' · '+(E.d>.65?'majestic':E.d>.38?'steady':'humble')}
+</script>
+<script>
+// Back button: step back through screens instead of leaving the app (build 2026101305)
+(function(){const base=setTab;let popping=false;
+ window.setTab=setTab=function(t){const prev=S.tab;base.apply(this,arguments);if(!popping&&prev!==t)history.pushState({lt:1,tab:t},'')};
+ history.replaceState({lt:1,tab:S.tab||'book',root:1},'');history.pushState({lt:1,tab:S.tab||'book'},'');
+ addEventListener('popstate',e=>{const st=e.state;
+  if(window.more&&more.style.display&&more.style.display!='none'){more.style.display='none';history.pushState({lt:1,tab:S.tab},'');return}
+  if(st&&st.lt&&!st.root){popping=true;try{setTab(st.tab)}finally{popping=false}return}
+  // at the root: stay in the app
+  history.pushState({lt:1,tab:S.tab},'')});
+})();
 </script>
 </body></html>
