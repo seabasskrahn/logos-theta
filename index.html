@@ -87,7 +87,7 @@ button{touch-action:manipulation}select,input,textarea{font:inherit;background:#
  <button onclick="nightOn()">🌙 Night mode</button><button onclick="prayOn()">🙏 Pray mode</button></div>
  <div class="row"><label><input type="checkbox" id="autoP"> Auto play (continue through the Bible)</label><label><input type="checkbox" id="thread"> Follow the thread (hop to the strongest unvisited cross-reference)</label><label><input type="checkbox" id="narr"> KJV narration (speech)</label><select id="voice"></select></div>
  <div class="dim" id="bl1"></div><div class="dim">Narration uses your device's speechSynthesis voice; it is not included in the saved WAV.</div><div class="dim">Use headphones for the binaural layer. Output is capped at half volume.</div></div></div>
-<script src="engine.js?v=2026101303"></script>
+<script src="engine.js?v=2026101304"></script>
 <script>
 // ---- native bridge (APK only): when running in the Capacitor app, speechSynthesis is backed by native Android TTS so it keeps going in the background
 window.LT_NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());window.LT_VMAX=window.LT_NATIVE?4:3;
@@ -118,7 +118,7 @@ const tone=v=>{const f=tone0(v);return HSET.reduce((a,b)=>Math.abs(Math.log(b/f)
 const DRONES=[50,100,150];
 // ---- word codebook (build 2026101214): every WHOLE word -> its lemma -> one fixed tone signature taken from the Bible's own
 // use of that lemma (tools/build_codebook.py -> codebook/*.json). No letter values or gematria are involved.
-// signature [root,p1,p2,count,first]: register from concordance size (common=low), root step from first mention, 2 partials from
+// signature [step,octave,c1,c2,count,first]: register from concordance size (common=low), step from first-appearance rank, 2 partials from
 // the roots of the lemmas it most often shares a verse with. Hebrew: OSHB Strong's (H####); Greek: MorphGNT SBLGNT lemma; English-only books: KJV stem.
 const CB={};let cbP=null,cbTok=0;
 function cbLoad(){return cbP||(cbP=Promise.all(['heb','grk','eng','places'].map(n=>cachedJSON('codebook/'+n+'.json?v=2026101215','lt-cb-v2').then(j=>{CB[n]=j}).catch(e=>console.warn('Codebook '+n+' failed to load:',e)))))}
@@ -128,9 +128,10 @@ const grkNorm=w=>w.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const hebCons=w=>w.replace(/[^\u05D0-\u05EA]/g,'');
 // ---- The Eye (build 2026101215, Matthew 6:22): one centre F0 (pupil); word = just ratio x octave (iris); companions = two
 // partials snapped to consonances (lids). See SONOLUMINA_ALGORITHM.md. Entry: [step,octave,c1,c2,count,first].
-let F0=110;const isLive=()=>S.mode=='live',BASEF=()=>isLive()&&S.base&&S.baseHz?S.baseHz/TUNE():110,SOLF=[174,285,396,417,528,639,741,852,963],solfOn=()=>isLive()&&!!S.solf,
+let F0=110;const isLive=()=>S.mode=='live',BASEF=()=>S.home396?99:(isLive()&&S.base&&S.baseHz?S.baseHz/TUNE():110),SOLF=[174,285,396,417,528,639,741,852,963],solfOn=()=>isLive()&&!!S.solf,
  solfF=f=>{if(!solfOn()||!f)return f;let b=f,bd=1e9;for(const s0 of SOLF){let q=s0;while(q>f*1.4142)q/=2;while(q<f/1.4142)q*=2;const d=Math.abs(Math.log(q/f));if(d<bd){bd=d;b=q}}return f*Math.pow(b/f,S.solfK==null?.5:+S.solfK)},
  padBase=()=>{if(solfOn()&&S.solfA){let a=+S.solfA;const c=F0*TUNE();while(a>c*1.4142)a/=2;while(a<c/1.4142)a*=2;return a/TUNE()}return F0},JUST=SonoEngine.J,JUSTS=SonoEngine.JS,CONS=SonoEngine.CB_CONS;   // tone math lives in engine.js
+const solfWords=a=>{if(S.solfWords===false||!a||!a.length)return a;const f=a[0];let b=f,bd=1e9;for(const s0 of SOLF){let q=s0;while(q>f*1.4142)q/=2;while(q<f/1.4142)q*=2;const d=Math.abs(Math.log(q/f));if(d<bd){bd=d;b=q}}const r=b/f;return a.map(h=>h*r)};  // solfeggio word tones (Puleo/Horowitz 1999 set, octave-folded), home stays 110 Hz
 const consSnap=SonoEngine.companion; // Law: companion set {1,3/2,4/3,5/4,6/5}
 // instruments: book genre -> harmonic recipe for the word-tone waveform
 const GENRES=[['Law',[1,.28,.1]],['History',[1,.15,.05]],['Poetry/Wisdom',[1,.1]],['Prophets',[1,.22,.1,.05]],['Gospels',[1]],['Epistles',[1,0,.12,0,.05]],['Apocalyptic',[1,0,.18,0,.08]]];
@@ -141,7 +142,7 @@ function placeOf(w,g){const P=CB.places;if(!P||g==null)return null;const k=Strin
 function cbLook(raw,g){F0=BASEF();let k,d,lang,w=raw;const h=hebCons(raw),gk=h?'':grkNorm(raw);
  if(h){lang='heb';d=CB.heb;w=h;k=d&&d.forms[h]}else if(gk){lang='grk';d=CB.grk;k=d&&d.forms[gk];w=raw.replace(/[^\u0370-\u03FF\u1F00-\u1FFF]/g,'')}else{lang='eng';d=CB.eng;k=engStem(raw);w=raw.replace(/[^A-Za-z']/g,'')}
  const x=d&&k&&d.lex[k];if(!x)return{w,lang,key:null,place:lang=='eng'?placeOf(w,g):null};const f=SonoEngine.tone(x[0],x[1],F0);
- return{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[5]!=null?x[4]:x[3],first:x[5]!=null?x[5]:x[4],ratio:JUSTS[x[0]],oct:x[1],hz:SonoEngine.entryHz(x,F0),place:lang=='eng'?placeOf(w,g):null}}
+ return{w,lang,key:k,lemma:lang=='grk'?k.slice(1):k,n:x[5]!=null?x[4]:x[3],first:x[5]!=null?x[5]:x[4],ratio:JUSTS[x[0]],oct:x[1],hz:solfWords(SonoEngine.entryHz(x,F0)),place:lang=='eng'?placeOf(w,g):null}}
 function gRef(g){for(const[b,,cs]of META)for(let c=0;c<cs.length;c++){if(g<cs[c])return b+' '+(c+1)+':'+(g+1);g-=cs[c]}return'?'}
 // whole-verse drone: the signatures of the verse's key lemmas (its 3 rarest, i.e. most distinctive, words), blended
 function verseSig(text,g){const ws=cbWords(text).map(w=>cbLook(w,g)),ss=ws.filter(x=>x.key),key=ss.slice().sort((a,b)=>a.n-b.n).slice(0,3);return{ws,key,hz:[F0].concat(key.map(x=>F0*consSnap(x.hz[0]/F0)))}}
@@ -530,7 +531,7 @@ const noteIc=k=>S.notes[k]?`<button class="vp" onclick="event.stopPropagation();
 function noteEdit(k){const t=prompt('Note for '+kRef(k)+' (empty to delete):',S.notes[k]||'');if(t===null)return;t.trim()?S.notes[k]=t.trim():delete S.notes[k];persist();drawRead();if(rbook)rDraw()}
 function stepChapter(d){const p=pendPos||S.pos;let b=p.b,c=p.c+d;const i=META.findIndex(m=>m[0]==b);if(c<1){if(!i)return;b=META[i-1][0];c=META[i-1][2].length}else if(c>MB[b][2].length){if(i==META.length-1)return;b=META[i+1][0];c=1}playChapter(b,c)}
 function setAuto(on){S.auto=on;autoP.checked=on;autoB.style.background=on?'#d9b65a':'none';autoB.style.color=on?'#141218':'';persist()}
-const BUILD='2026101303',BUILD_LABEL='build Live · 2026101303';
+const BUILD='2026101304',BUILD_LABEL='build Live · 2026101304';
 async function versionCheck(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();
  if(String(j.build)>BUILD){notice('Update available - tap to reload');const n=$('ltNotice');n.style.cursor='pointer';n.onclick=e=>{if(e.target.tagName!='BUTTON')location.href=location.pathname+'?v='+j.build+location.hash}}}catch(e){}}
 
@@ -874,6 +875,8 @@ body.lt-nonum .vp,body.lt-nonum .rv sup,body.lt-nonum .v sup{display:none}
   {k:'s777',l:'777 Hz bright tone',d:'Soft steady layer; a symbolic choice.',t:'chk',g:()=>S.s777!==false,s:v=>ctl(s777,v,'change')},
   {k:'aref',l:'Alternative tuning A=432',d:'Default A=440. 432 is a preference with thin evidence (one small pilot study); scripture names no tuning.',t:'chk',g:()=>S.aref==432,s:v=>ctl(aref,v,'change')},
   {k:'decode',l:'Show "Now decoding" line',d:'In the full player: the current word, its lemma, how often it occurs, its first mention, and its tone.',t:'chk',g:()=>S.decode!==false,s:v=>{S.decode=v;persist();cbShow(null)}},
+  {k:'solf_words',l:'Solfeggio word tones',d:'Word tones snap to the nearest solfeggio frequency (174–963 Hz, from Puleo & Horowitz, 1999; a numerical method, not scripture or science). Home note stays 110 Hz.',t:'chk',g:()=>S.solfWords!==false,s:v=>{S.solfWords=!!v;persist()}},
+  {k:'home396',l:'Home note 396 Hz (Ut)',d:'Optional: use 396 Hz, folded down to 99 Hz, as the home note instead of 110 Hz.',t:'chk',g:()=>!!S.home396,s:v=>{S.home396=!!v;persist()}},
   {k:'vol_voice',l:'Voice volume',t:'range',min:0,max:1,step:.05,g:()=>S.volVoice==null?1:+S.volVoice,s:v=>{S.volVoice=+v;persist()},f:x=>Math.round(x*100)+'%'},
   {k:'vol_music',l:'Background music volume',t:'range',min:0,max:1,step:.05,g:()=>S.volMusic==null?1:+S.volMusic,s:v=>{S.volMusic=+v;persist();if(window.LT_MV&&ctx)window.LT_MV.gain.setTargetAtTime(+v,ctx.currentTime,.03)},f:x=>Math.round(x*100)+'%'},
   {k:'mixh',l:'Mixer',t:'note',h:'Levels per section, balanced by perceived loudness at 100%. Bass: cello on the chord root (centre). Pad: strings (wide). Counter-melody: piano arpeggios (left; the rare-word line in Pure tones). Melody: celesta on key words (right). Theta: binaural layers and 777. Cross-refs: the meetings (from the sides).'},
